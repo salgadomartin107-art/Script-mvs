@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# NOTI-BOT: --boot (aviso de arranque) y --daily (resumen diario). Usa Telegram.
+set -uo pipefail
+ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+source "$ROOT/lib/common.sh"
+source "$ROOT/lib/notify.sh"
+source "$ROOT/lib/users.sh"
+[[ ${EUID:-$(id -u)} -eq 0 ]] || exit 1
+
+case "${1:-}" in
+    --boot)
+        sleep 20
+        tg_send "VPS iniciada: $(hostname) ($(server_ip)) - $(uptime -p)"
+        ;;
+    --daily)
+        now="$(date +%s)"; total=0; online=0; soon=""
+        while IFS='|' read -r u e _; do
+            [[ -n "$u" ]] || continue
+            total=$((total + 1)); online=$((online + $(user_online "$u")))
+            left=$(( ( $(date -d "$e" +%s 2>/dev/null || echo "$now") - now ) / 86400 ))
+            (( left <= 3 )) && soon+=$'\n'" - $u: vence $e ($left d)"
+        done < <(cat "$USERS_DB" 2>/dev/null)
+        msg="Resumen diario de $(hostname): $total usuarios, $online conexiones activas."
+        [[ -n "$soon" ]] && msg+=$'\nPor vencer (3 días o menos):'"$soon"
+        tg_send "$msg"
+        ;;
+    *) echo "Uso: notibot --boot | --daily"; exit 1 ;;
+esac

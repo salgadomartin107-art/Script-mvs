@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Bot de Telegram para administrar usuarios. Solo responde al id personal configurado (TG_CHAT).
+set -uo pipefail
+ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+source "$ROOT/lib/common.sh"
+source "$ROOT/lib/notify.sh"
+source "$ROOT/lib/users.sh"
+[[ ${EUID:-$(id -u)} -eq 0 ]] || exit 1
+command -v jq >/dev/null 2>&1 || { echo "Falta jq"; exit 1; }
+tg_configured || { echo "Configurá Telegram primero"; exit 1; }
+
+strip() { sed 's/\x1b\[[0-9;]*m//g' | head -c 3800; }
+reply() { tg_reply "$1" "$2"; }
+
+HELP="Comandos:
+/estado - uso de recursos y conexiones
+/usuarios - lista de usuarios
+/crear usuario clave dias limite
+/renovar usuario dias
+/limite usuario n
+/borrar usuario
+Tip: borro tu mensaje de /crear para que la clave no quede en el chat."
+
+handle() { # chat message_id texto
+    local chat="$1" mid="$2" text="$3" cmd a1 a2 a3 a4 out
+    read -r cmd a1 a2 a3 a4 _ <<<"$text"
+    cmd="${cmd%%@*}"
+    case "$cmd" in
+        /start|/ayuda|/help) reply "$chat" "$HELP" ;;
+        /estado)
+            reply "$chat" "$(hostname) - $(uptime -p)
+RAM: $(free -h | awk '/^Mem:/{print $3 "/" $2}')  Disco: $(df -h / | awk 'NR==2{print $3 "/" $2 " (" $5 ")"}')
+Carga: $(cut -d' ' -f1-3 /proc/loadavg)  Usuarios: $(wc -l < "$USERS_DB")" ;;
+        /usuarios) out="$(user_list 2>&1 | strip)"; reply "$chat" "$out" ;;
+        /crear)
+            out="$(user_create "${a1:-}" "${a2:-}" "${a3:-30}" "${a4:-1}" 2>&1 | strip)"
+            tg_api deleteMessage -d "chat_id=$chat" -d "message_id=$mid" >/dev/null 2>&1 || true
+            reply "$chat" "$out" ;;
+        /borrar)  out="$(user_delete "${a1:-}" 2>&1 | strip)"; reply "$chat" "$out" ;;
+        /renovar) out="$(user_renew "${a1:-}" "${a2:-30}" 2>&1 | strip)"; reply "$chat" "$out" ;;
+        /limite)  out="$(user_set_limit "${a1:-}" "${a2:-}" 2>&1 | strip)"; reply "$chat" "$out" ;;
+        *) reply "$chat" "Comando no reconocido. /ayuda" ;;
+    esac
+}
+
+offset=0
+while true; do
+    resp="$(tg_api getUpdates -d "offset=$offset" -d "timeout=50" --data-urlencode 'allowed_updates=["message"]')" || { sleep 5; continue; }
+    [[ "$(jq -r '.ok' <<<"$resp" 2>/dev/null)" == true ]] || { sleep 5; continue; }
+    while IFS= read -r upd; do
+        offset=$(( $(jq -r '.update_id' <<<"$upd") + 1 ))
+        from="$(jq -r '.message.from.id // empty' <<<"$upd")"
+        chat="$(jq -r '.message.chat.id // empty' <<<"$upd")"
+        text="$(jq -r '.message.text // empty' <<<"$upd")"
+        mid="$(jq -r '.message.message_id // empty' <<<"$upd")"
+        [[ -n "$from" && -n "$chat" && -n "$text" ]] || continue
+        [[ "$from" == "$(conf_get TG_CHAT)" && "$chat" == "$from" ]] || continue
+        handle "$chat" "$mid" "$text"
+    done < <(jq -c '.result[]?' <<<"$resp")
+done

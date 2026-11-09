@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Lo ejecuta cron: sin argumentos aplica límites; con --expire elimina vencidos.
+set -uo pipefail
+ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+source "$ROOT/lib/common.sh"
+source "$ROOT/lib/notify.sh"
+source "$ROOT/lib/users.sh"
+
+[[ ${EUID:-$(id -u)} -eq 0 ]] || exit 1
+[[ -f "$USERS_DB" ]] || exit 0
+
+case "${1:-}" in
+    --expire) users_expire_sweep ;;
+    *)        users_enforce_limits ;;
+esac

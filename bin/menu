@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -uo pipefail
+ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+source "$ROOT/lib/common.sh"
+source "$ROOT/lib/ui.sh"
+source "$ROOT/lib/notify.sh"
+source "$ROOT/lib/users.sh"
+# shellcheck disable=SC1090
+for m in "$ROOT"/modules/*.sh; do source "$m"; done
+
+require_root
+ensure_data
+[[ "$ROOT" == "/opt/${APP_SLUG}" ]] \
+    || warn "Estás ejecutando desde $ROOT. Los servicios usan /opt/${APP_SLUG}: instalá con ./install.sh y abrí el panel con el comando 'menu'."
+
+menu_users() {
+    local op name pass days limit
+    while true; do
+        title "Usuarios SSH"
+        echo " 1) Crear usuario      4) Cambiar límite"
+        echo " 2) Eliminar usuario   5) Listar usuarios"
+        echo " 3) Renovar usuario    0) Volver"
+        bar; read -rp " Opción: " op
+        case "$op" in
+            1) read -rp "Usuario: " name; read -rsp "Clave: " pass; echo
+               read -rp "Días de validez [30]: " days; read -rp "Límite de conexiones (0 = sin límite) [1]: " limit
+               user_create "$name" "$pass" "${days:-30}" "${limit:-1}"; pause ;;
+            2) read -rp "Usuario a eliminar: " name; user_delete "$name"; pause ;;
+            3) read -rp "Usuario: " name; read -rp "Días [30]: " days; user_renew "$name" "${days:-30}"; pause ;;
+            4) read -rp "Usuario: " name; read -rp "Nuevo límite: " limit; user_set_limit "$name" "$limit"; pause ;;
+            5) user_list; pause ;;
+            0) return ;;
+        esac
+    done
+}
+
+# Un solo menú: la pantalla de dos columnas (usuarios y Telegram están ahí como [U] y [K]).
+panel_menu
+clear

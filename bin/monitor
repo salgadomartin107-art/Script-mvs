@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Cron cada 2 min: reinicia servicios caídos y avisa por Telegram (una sola vez por caída).
+set -uo pipefail
+ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+source "$ROOT/lib/common.sh"
+source "$ROOT/lib/notify.sh"
+[[ ${EUID:-$(id -u)} -eq 0 ]] || exit 1
+
+STATE="/run/${APP_SLUG}-monitor"; mkdir -p "$STATE"
+
+for u in "${MVS_UNITS[@]}"; do
+    systemctl is-enabled --quiet "$u" 2>/dev/null || continue
+    if systemctl is-active --quiet "$u"; then rm -f "$STATE/$u"; continue; fi
+    systemctl restart "$u" 2>/dev/null; sleep 2
+    if systemctl is-active --quiet "$u"; then
+        tg_send "El servicio $u estaba caído y se reinició."; rm -f "$STATE/$u"
+    elif [[ ! -e "$STATE/$u" ]]; then
+        : > "$STATE/$u"; tg_send "El servicio $u está caído y no se pudo reiniciar. Revisá: journalctl -u $u"
+    fi
+done
+
+# Alertas de disco y RAM (como máximo una cada 6 horas)
+disk="$(df -P / | awk 'NR==2{gsub("%","",$5); print $5}')"
+ram="$(free | awk '/^Mem:/{printf "%d", $3*100/$2}')"
+alert() { # clave mensaje
+    find "$STATE/$1" -mmin -360 2>/dev/null | grep -q . && return 0
+    : > "$STATE/$1"; tg_send "$2"
+}
+[[ "$disk" =~ ^[0-9]+$ ]] && (( disk >= 90 )) && alert disk "Disco al ${disk}% en $(hostname)."
+[[ "$ram"  =~ ^[0-9]+$ ]] && (( ram  >= 95 )) && alert ram  "RAM al ${ram}% en $(hostname)."
+exit 0
