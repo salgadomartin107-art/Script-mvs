@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Puentes HTTP/WebSocket -> SSH/Dropbear (lib/py/wsproxy.py). Destino fijo y local.
 #   wsproxy [3]: modo "raw" (responde 101 y reenvía el flujo crudo, estilo HTTP Injector)
-#   wspro   [E]: modo "ws"  (WebSocket real con framing, apto para ir detrás de un CDN)
+#   wspro   [11]: modo "ws"  (WebSocket real con framing, apto para ir detrás de un CDN)
 # shellcheck shell=bash
 
 WSPROXY_STATUS_FILE="/etc/${APP_SLUG}-wsproxy.status"   # legible por el usuario del servicio (DATA_DIR es 700)

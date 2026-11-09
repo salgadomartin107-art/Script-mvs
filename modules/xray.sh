@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # V2RAY/XRAY: varias configuraciones a la vez (VLESS, VMess, Shadowsocks, REALITY), todo desde el panel.
 # Núcleo: release oficial de GitHub (XTLS/Xray-core) verificada con SHA-256.
-# Trojan [T] comparte este mismo servicio (inbound con etiqueta "trojan-in").
+# Trojan [12] comparte este mismo servicio (inbound con etiqueta "trojan-in").
 # shellcheck shell=bash
 
 XRAY_USER="${APP_SLUG}-xray"
@@ -270,7 +270,7 @@ xray_show() {
     while read -r t; do [[ -n "$t" ]] || continue; any=1; xray_show_tag "$t"; done < <(xray_tags)
     (( any )) || info "Todavía no hay configuraciones. Agregá una con la opción 1."
     if jq -e --arg t "$XRAY_TROJAN_TAG" '.inbounds[]? | select(.tag == $t)' "$XRAY_CONF" >/dev/null 2>&1; then
-        info "Además hay un Trojan activo: se administra desde [T] en el panel."
+        info "Además hay un Trojan activo: se administra desde [12] en el panel."
     fi
 }
 
@@ -300,7 +300,7 @@ xray_add() {
     echo " 8) Shadowsocks         TCP + UDP"
     echo " 9) VLESS-REALITY       sin dominio ni certificado"
     echo " 0) Volver"
-    echo " (Trojan: usá la opción [T] del panel.)"
+    echo " (Trojan: usá la opción [12] del panel.)"
     bar; read -rp " Opción: " op
     case "$op" in
         1) proto=vless-ws;       defport=8880 ;;

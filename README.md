@@ -57,7 +57,7 @@ Editá `config/app.conf` antes de instalar.
 
 ## Pantalla de protocolos
 
-`menu` abre directamente la pantalla de dos columnas (ON/OFF por servicio); `[U]` administra usuarios SSH y `[K]` configura Telegram. Cada número instala el
+`menu` abre directamente la pantalla de dos columnas (ON/OFF por servicio); `[35]` administra usuarios SSH y `[34]` configura Telegram. Cada número instala el
 servicio si está apagado, o abre ver datos / reinstalar / quitar si está activo.
 
 Incluye también: PYTHON-WS (HTTP 101 a SSH), WS-PRO (WebSocket real), WireGuard, Hysteria2,

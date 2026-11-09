@@ -26,7 +26,7 @@ hcr_normalize() { # entrada salida
     esac
 }
 
-# Baja un archivo enviado a TU bot de Telegram (el mismo de [K]). Solo se acepta el que mandes desde tu chat.
+# Baja un archivo enviado a TU bot de Telegram (el mismo de [34]). Solo se acepta el que mandes desde tu chat.
 tg_download() { # file_path destino
     local token; token="$(conf_get TG_TOKEN)"
     printf 'url = "https://api.telegram.org/file/bot%s/%s"\n' "$token" "$1" |
@@ -35,7 +35,7 @@ tg_download() { # file_path destino
 
 hcr_from_telegram() { # destino
     local dst="$1" chat resp fid fsize fpath bot_was=0 rc=1
-    tg_configured || { err "Primero configurá tu bot con [K] TELEGRAM (token y chat id)."; return 1; }
+    tg_configured || { err "Primero configurá tu bot con [34] TELEGRAM (token y chat id)."; return 1; }
     chat="$(conf_get TG_CHAT)"
     # el bot del panel consume los mensajes con getUpdates: se pausa unos segundos para no robarle el archivo
     if svc_is_active "${APP_SLUG}-bot"; then bot_was=1; systemctl stop "${APP_SLUG}-bot"; fi

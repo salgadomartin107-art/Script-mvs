@@ -12,7 +12,8 @@ hline() { printf '%s' "$R"; printf '%.0s'"$1" $(seq 1 "$LINE_W"); printf '%s\n' 
 
 # Celda de ancho fijo (27 columnas): [clave]→ ETIQUETA  [ON]
 cell() { # clave etiqueta estado(on|off|na|vacío)
-    local key="$1" label="$2" st="${3:-}" tag="" col="$N" lw
+    local key="$1" label="$2" st="${3:-}" tag="" col="$N" lw kc="$G"
+    [[ "$key" == [ZX] ]] && kc="$R"
     lw=$(( 27 - ${#key} - 4 ))
     case "$st" in
         on)  tag="[ON]";  col="$G" ;;
@@ -20,7 +21,7 @@ cell() { # clave etiqueta estado(on|off|na|vacío)
         na)  tag="[N/D]"; col="$Y" ;;
     esac
     [[ -n "$tag" ]] && lw=$(( lw - 6 ))
-    printf '%s[%s%s%s]%s→%s %s%-*.*s%s' "$Y" "$G" "$key" "$Y" "$R" "$N" "$WH" "$lw" "$lw" "$label" "$N"
+    printf '%s[%s%s%s]%s→%s %s%-*.*s%s' "$Y" "$kc" "$key" "$Y" "$R" "$N" "$WH" "$lw" "$lw" "$label" "$N"
     [[ -n "$tag" ]] && printf ' %s%-5s%s' "$col" "$tag" "$N"
     return 0
 }

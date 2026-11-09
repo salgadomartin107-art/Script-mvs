@@ -6,16 +6,17 @@ declare -A UNIT=(
     [1]="${APP_SLUG}-udpgw"        [2]="shadowsocks-libev"      [3]="${APP_SLUG}-wsproxy"
     [4]="${APP_SLUG}-xray"         [5]="${APP_SLUG}-stunnel"    [6]="${APP_SLUG}-dropbear"
     [7]="squid"                    [8]="openvpn-server@${APP_SLUG}" [9]="${APP_SLUG}-slowdns"
-    [11]="${APP_SLUG}-bot"         [12]="wg-quick@${APP_SLUG}"  [14]="${APP_SLUG}-checkuser"
-    [21]="fail2ban"                [E]="${APP_SLUG}-wspro"      [L]="${APP_SLUG}-hysteria"   [H]="${APP_SLUG}-hcr"
+    [10]="wg-quick@${APP_SLUG}"    [11]="${APP_SLUG}-wspro"     [13]="${APP_SLUG}-hysteria"
+    [14]="${APP_SLUG}-hcr"         [21]="fail2ban"
+    [31]="${APP_SLUG}-bot"         [33]="${APP_SLUG}-checkuser"
 )
 
 state_of() {
     case "$1" in
-        10) [[ -f "/etc/cron.d/${APP_SLUG}-monitor" ]] && echo on || echo off ;;
-        13) [[ -f "/etc/cron.d/${APP_SLUG}-notibot" ]] && echo on || echo off ;;
-        T)  trojan_active && echo on || echo off ;;
-        K)  tg_configured && echo on || echo off ;;
+        30) [[ -f "/etc/cron.d/${APP_SLUG}-monitor" ]] && echo on || echo off ;;
+        32) [[ -f "/etc/cron.d/${APP_SLUG}-notibot" ]] && echo on || echo off ;;
+        12) trojan_active && echo on || echo off ;;
+        34) tg_configured && echo on || echo off ;;
         15|16|17|18) echo na ;;
         *)  local u="${UNIT[$1]:-}"
             if [[ -n "$u" ]] && svc_is_active "$u"; then echo on; else echo off; fi ;;
@@ -54,18 +55,20 @@ panel_ports() {
 }
 
 panel_screen() {
-    local -a P1 T1 P2 T2
+    local -a P1 T1
+    # Izquierda: PROTOCOLOS (solo números). Derecha: HERRAMIENTAS (lo demás; Z y X con letra roja).
     P1=( "1|BADVPN|$(state_of 1)" "2|SOCKS LIBEV|$(state_of 2)" "3|SOCKS PYTHON|$(state_of 3)"
          "4|V2RAY/XRAY|$(state_of 4)" "5|SSL/TLS|$(state_of 5)" "6|DROPBEAR|$(state_of 6)"
          "7|SQUID|$(state_of 7)" "8|OPENVPN|$(state_of 8)" "9|SLOWDNS|$(state_of 9)"
-         "10|MONITOR|$(state_of 10)" "11|BOT TELEGRAM|$(state_of 11)" "12|WIREGUARD|$(state_of 12)" )
+         "10|WIREGUARD|$(state_of 10)" "11|WS-PRO|$(state_of 11)" "12|TROJAN|$(state_of 12)"
+         "13|HYSTERIA2|$(state_of 13)" "14|HCR|$(state_of 14)" "15|PSIPHON|na"
+         "16|UDP-ZIVPN|na" "17|UDPs Request|na" "18|UDP-CUSTOM|na" )
     T1=( "19|ARCHIVO ONLINE|" "20|FIREWALL|" "21|FAIL2BAN PROTECCION|" "22|DETALLES DE SISTEMA|"
          "23|TCP BBR|" "24|DNS SERVIDOR|" "25|LIBERAR RAM|" "26|SCANNER SUBDOMINIO|"
-         "27|PRUEBA DE VELOCIDAD|" "28|FIX ORACLE/AWS/AZR|" "29|HERRAMIENTAS BASICOS|" "0|◄ SALIR|" )
-    P2=( "13|NOTI-BOT|$(state_of 13)" "14|CHECK-USER|$(state_of 14)" "15|PSIPHON|na"
-         "E|WS-PRO|$(state_of E)" "T|TROJAN|$(state_of T)" "K|TELEGRAM|$(state_of K)" )
-    T2=( "16|UDP-ZIVPN|na" "17|UDPs Request|na" "18|UDP-CUSTOM|na" "L|HYSTERIA2|$(state_of L)"
-         "H|HCR|$(state_of H)" "U|USUARIOS SSH|" "Z|ACTUALIZAR SCRIPT|" "X|DESINSTALAR|" )
+         "27|PRUEBA DE VELOCIDAD|" "28|FIX ORACLE/AWS/AZR|" "29|HERRAMIENTAS BASICOS|"
+         "30|MONITOR|$(state_of 30)" "31|BOT TELEGRAM|$(state_of 31)" "32|NOTI-BOT|$(state_of 32)"
+         "33|CHECK-USER|$(state_of 33)" "34|TELEGRAM|$(state_of 34)" "35|USUARIOS SSH|"
+         "Z|ACTUALIZAR SCRIPT|" "X|DESINSTALAR|" "0|◄ SALIR|" )
 
     clear
     hline ═
@@ -77,8 +80,6 @@ panel_screen() {
     hline ─
     print_rows P1 T1
     hline ─
-    print_rows P2 T2
-    hline ─
 }
 
 not_available() {
@@ -89,7 +90,7 @@ not_available() {
             echo "y este panel no instala software que no pueda verificarse." ;;
     esac
     echo
-    echo "Alternativas abiertas incluidas: HYSTERIA2 [L] (UDP/QUIC) y BADVPN [1] (UDP sobre SSH)."
+    echo "Alternativas abiertas incluidas: HYSTERIA2 [13] (UDP/QUIC) y BADVPN [1] (UDP sobre SSH)."
     pause
 }
 
@@ -131,20 +132,12 @@ panel_menu() {
             7)  manage 7  SQUID         install_squid       squid_info        remove_squid ;;
             8)  manage 8  OPENVPN       install_openvpn     openvpn_info      remove_openvpn ;;
             9)  manage 9  SLOWDNS       install_slowdns     slowdns_info      remove_slowdns ;;
-            10) manage 10 MONITOR       install_monitor     monitor_info      remove_monitor ;;
-            11) manage 11 "BOT TELEGRAM" install_bot        bot_info          remove_bot ;;
-            12) wireguard_menu ;;
-            13) manage 13 NOTI-BOT      install_notibot     notibot_info      remove_notibot ;;
-            14) manage 14 CHECK-USER    install_checkuser   checkuser_info    remove_checkuser ;;
+            10) wireguard_menu ;;
+            11) manage 11 WS-PRO        install_wspro       wspro_info        remove_wspro ;;
+            12) trojan_menu ;;
+            13) manage 13 HYSTERIA2     install_hysteria    hysteria_info     remove_hysteria ;;
+            14) manage 14 HCR           install_hcr         hcr_info          remove_hcr ;;
             15|16|17|18) not_available "${op}" ;;
-            E)  manage E  WS-PRO        install_wspro       wspro_info        remove_wspro ;;
-            L)  manage L  HYSTERIA2     install_hysteria    hysteria_info     remove_hysteria ;;
-            H)  manage H  HCR           install_hcr         hcr_info          remove_hcr ;;
-            T)  trojan_menu ;;
-            U)  menu_users ;;
-            Z)  update_script; pause ;;
-            X)  uninstall_all ;;
-            K)  title "Telegram"; tg_configure; pause ;;
             19) fileserver_menu ;;
             20) firewall_menu ;;
             21) manage 21 FAIL2BAN      install_fail2ban    fail2ban_status   remove_fail2ban ;;
@@ -156,6 +149,14 @@ panel_menu() {
             27) title "Test de velocidad"; run_speedtest; pause ;;
             28) cloudfix_menu ;;
             29) basics_menu ;;
+            30) manage 30 MONITOR       install_monitor     monitor_info      remove_monitor ;;
+            31) manage 31 "BOT TELEGRAM" install_bot        bot_info          remove_bot ;;
+            32) manage 32 NOTI-BOT      install_notibot     notibot_info      remove_notibot ;;
+            33) manage 33 CHECK-USER    install_checkuser   checkuser_info    remove_checkuser ;;
+            34) title "Telegram"; tg_configure; pause ;;
+            35) menu_users ;;
+            Z)  update_script; pause ;;
+            X)  uninstall_all ;;
             0)  return ;;
         esac
     done
