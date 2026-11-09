@@ -13,6 +13,8 @@ warn() { printf '\033[1;33m[!]\033[0m %s\n' "$*"; }
 die()  { printf '\033[1;31m[x]\033[0m %s\n' "$*" >&2; exit 1; }
 
 [[ ${EUID:-$(id -u)} -eq 0 ]] || die "Ejecutá como root (sudo -i)."
+# bash mvs.sh --uninstall : quita todo (usa el panel de este mismo paquete, aunque /opt esté dañado)
+[[ "${1:-}" == "--uninstall" ]] && exec "$SRC/bin/menu" --uninstall
 command -v apt-get >/dev/null 2>&1 || die "Se requiere Debian o Ubuntu (apt)."
 
 # ---------- sistema operativo y arquitectura ----------

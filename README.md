@@ -11,6 +11,14 @@ Sistemas: Ubuntu 18.04–24.04 (x64 y ARM64) y Debian 8–12 (x64). Verifica el 
 repositorios de Debian viejo (archive.debian.org) y adapta las unidades de systemd a la versión instalada.
 Limitaciones conocidas en Debian 8: sin gestor de Xray (jq 1.4) y servicios con puertos < 1024 como root.
 
+## Desinstalar (deja el VPS limpio)
+
+    menu  →  [X] DESINSTALAR          o bien:   bash mvs-install.sh --uninstall   /   menu --uninstall
+
+Pide escribir DESINSTALAR. Quita servicios, binarios, configuración, claves, tareas programadas, banner SSH,
+inicio automático, reglas de iptables propias y el comando `menu`; opcionalmente los usuarios SSH creados,
+los paquetes de apt y los backups. Al final verifica que no quede nada.
+
 ## Instalar desde el repo
 
     git clone <tu-repo> && cd mvs

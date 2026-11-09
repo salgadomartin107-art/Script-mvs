@@ -34,6 +34,8 @@ menu_users() {
     done
 }
 
+if [[ "${1:-}" == "--uninstall" ]]; then uninstall_all; exit 0; fi
+
 # Un solo menú: la pantalla de dos columnas (usuarios y Telegram están ahí como [U] y [K]).
 panel_menu
 clear

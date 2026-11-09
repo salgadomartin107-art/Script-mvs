@@ -21,7 +21,7 @@ TMP="\$(mktemp -d)"; trap 'rm -rf "\$TMP"' EXIT
 sed '1,/^__MVS_PAYLOAD__\$/d' "\$SELF" | base64 -d > "\$TMP/payload.tgz" 2>/dev/null || { echo "El archivo está incompleto o dañado (¿faltó pegar alguna parte?)."; exit 1; }
 echo "${SUM}  \$TMP/payload.tgz" | sha256sum -c - >/dev/null 2>&1 || { echo "Verificación SHA-256 fallida: archivo incompleto o alterado."; exit 1; }
 tar -xzf "\$TMP/payload.tgz" -C "\$TMP"
-bash "\$TMP/mvs/install.sh"
+bash "\$TMP/mvs/install.sh" "\$@"
 exit 0
 __MVS_PAYLOAD__
 EOF

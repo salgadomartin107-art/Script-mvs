@@ -65,7 +65,7 @@ panel_screen() {
     P2=( "13|NOTI-BOT|$(state_of 13)" "14|CHECK-USER|$(state_of 14)" "15|PSIPHON|na"
          "E|WS-PRO|$(state_of E)" "T|TROJAN|$(state_of T)" "K|TELEGRAM|$(state_of K)" )
     T2=( "16|UDP-ZIVPN|na" "17|UDPs Request|na" "18|UDP-CUSTOM|na" "L|HYSTERIA2|$(state_of L)"
-         "H|HCR|$(state_of H)" "U|USUARIOS SSH|" )
+         "H|HCR|$(state_of H)" "U|USUARIOS SSH|" "X|DESINSTALAR|" )
 
     clear
     hline ═
@@ -120,7 +120,7 @@ panel_menu() {
     local op
     while true; do
         panel_screen
-        read -rp "${C}▸${N} Seleccioná una opción: " op
+        read -rp "${C}▸${N} Seleccioná una opción: " op || return   # sin terminal (EOF): salir, no girar
         case "${op^^}" in
             1)  manage 1  BADVPN        install_badvpn      udpgw_info        remove_badvpn ;;
             2)  manage 2  SHADOWSOCKS   install_shadowsocks shadowsocks_info  remove_shadowsocks ;;
@@ -142,6 +142,7 @@ panel_menu() {
             H)  manage H  HCR           install_hcr         hcr_info          remove_hcr ;;
             T)  trojan_menu ;;
             U)  menu_users ;;
+            X)  uninstall_all ;;
             K)  title "Telegram"; tg_configure; pause ;;
             19) fileserver_menu ;;
             20) firewall_menu ;;
