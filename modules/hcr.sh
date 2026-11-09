@@ -126,10 +126,20 @@ install_hcr() {
     echo "HCR Server: binario cerrado del ePro Dev Team (https://t.me/ePro_Dev_Team)."
     warn "Está ofuscado y comprimido con UPX: no se puede auditar. Por eso corre sin privilegios, con el sistema"
     warn "protegido y SIN permiso para abrir conexiones salientes (solo atiende clientes y habla con SSH local)."
-    echo "Origen: ruta del .tar.gz o del binario en este VPS, una URL https, o la palabra TELEGRAM"
-    echo "(TELEGRAM = lo enviás a tu propio bot y el VPS lo descarga; no hace falta otra app)."
-    read -rp "Origen: " src
-    [[ -n "$src" ]] || { info "Cancelado."; return 0; }
+    local bundled="${ROOT}/vendor/hcr-server-linux-amd64.tar.gz"
+    if [[ -f "$bundled" ]]; then
+        echo "Este panel trae incluido el paquete: hcr-server-linux-amd64.tar.gz"
+        echo "  SHA-256 del paquete: $(sha256sum "$bundled" | awk '{print $1}')"
+        echo "Origen: Enter = usar el incluido | ruta, URL https o la palabra TELEGRAM para otro | 0 = cancelar"
+        read -rp "Origen [incluido]: " src
+        [[ "$src" == 0 ]] && { info "Cancelado."; return 0; }
+        [[ -n "$src" ]] || src="$bundled"
+    else
+        echo "Origen: ruta del .tar.gz o del binario en este VPS, una URL https, o la palabra TELEGRAM"
+        echo "(TELEGRAM = lo enviás a tu propio bot y el VPS lo descarga; no hace falta otra app)."
+        read -rp "Origen: " src
+        [[ -n "$src" ]] || { info "Cancelado."; return 0; }
+    fi
     pkg_install openssl curl iptables || return 1
     ensure_service_user "$HCR_USER"
     tmp="$(mktemp -d)"; chmod 711 "$tmp"
