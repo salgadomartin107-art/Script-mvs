@@ -65,7 +65,7 @@ panel_screen() {
     P2=( "13|NOTI-BOT|$(state_of 13)" "14|CHECK-USER|$(state_of 14)" "15|PSIPHON|na"
          "E|WS-PRO|$(state_of E)" "T|TROJAN|$(state_of T)" "K|TELEGRAM|$(state_of K)" )
     T2=( "16|UDP-ZIVPN|na" "17|UDPs Request|na" "18|UDP-CUSTOM|na" "L|HYSTERIA2|$(state_of L)"
-         "H|HCR|$(state_of H)" "U|USUARIOS SSH|" "X|DESINSTALAR|" )
+         "H|HCR|$(state_of H)" "U|USUARIOS SSH|" "Z|ACTUALIZAR SCRIPT|" "X|DESINSTALAR|" )
 
     clear
     hline ═
@@ -142,6 +142,7 @@ panel_menu() {
             H)  manage H  HCR           install_hcr         hcr_info          remove_hcr ;;
             T)  trojan_menu ;;
             U)  menu_users ;;
+            Z)  update_script; pause ;;
             X)  uninstall_all ;;
             K)  title "Telegram"; tg_configure; pause ;;
             19) fileserver_menu ;;

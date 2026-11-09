@@ -35,6 +35,7 @@ menu_users() {
 }
 
 if [[ "${1:-}" == "--uninstall" ]]; then uninstall_all; exit 0; fi
+if [[ "${1:-}" == "--update" ]]; then update_script; exit $?; fi
 
 # Un solo menú: la pantalla de dos columnas (usuarios y Telegram están ahí como [U] y [K]).
 panel_menu

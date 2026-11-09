@@ -6,7 +6,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-$PWD/mvs-install.sh}"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/mvs"
-(cd "$ROOT" && tar --exclude=./tools --exclude=./.git -cf - .) | tar -xf - -C "$TMP/mvs"
+(cd "$ROOT" && tar --exclude=./tools --exclude=./.git --exclude=./mvs-install.sh --exclude=./*.tgz -cf - .) | tar -xf - -C "$TMP/mvs"
 (cd "$TMP" && tar --owner=0 --group=0 --numeric-owner -czf payload.tgz mvs)
 SUM="$(sha256sum "$TMP/payload.tgz" | awk '{print $1}')"
 {
