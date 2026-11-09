@@ -53,6 +53,24 @@ user_create() { # nombre clave dias limite
     tg_send "Usuario creado: $name (vence $exp, límite $limit)"
 }
 
+# Ficha del usuario recién creado (con la clave a la vista, para copiarla y pasarla al cliente)
+user_card() { # nombre clave dias limite
+    local name="$1" pass="$2" days="$3" limit="$4" exp ip
+    exp="$(date -d "+${days} days" +%F)"
+    # IP pública (en Azure/Oracle la de la interfaz es privada); si no responde se usa la local
+    ip="$(curl -4 -fsS -m 4 https://api.ipify.org 2>/dev/null)"
+    [[ "$ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || ip="$(server_ip 2>/dev/null)"
+    echo
+    bar
+    printf ' %sUsuario :%s %s\n' "$Y" "$N" "$name"
+    printf ' %sClave   :%s %s\n' "$Y" "$N" "$pass"
+    printf ' %sIP      :%s %s\n' "$Y" "$N" "$ip"
+    printf ' %sVence   :%s %s (%s días)\n' "$Y" "$N" "$exp" "$days"
+    if [[ "$limit" == 0 ]]; then printf ' %sLímite  :%s sin límite\n' "$Y" "$N"
+    else printf ' %sLímite  :%s %s conexión(es)\n' "$Y" "$N" "$limit"; fi
+    bar
+}
+
 user_delete() {
     local name="$1"
     db_has "$name" || { err "Ese usuario no está gestionado por ${APP_NAME}."; return 1; }

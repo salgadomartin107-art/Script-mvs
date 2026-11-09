@@ -22,9 +22,12 @@ menu_users() {
         echo " 3) Renovar usuario    0) Volver"
         bar; read -rp " Opción: " op
         case "$op" in
-            1) read -rp "Usuario: " name; read -rsp "Clave: " pass; echo
+            1) read -rp "Usuario: " name; read -rp "Clave (se ve al escribir): " pass
                read -rp "Días de validez [30]: " days; read -rp "Límite de conexiones (0 = sin límite) [1]: " limit
-               user_create "$name" "$pass" "${days:-30}" "${limit:-1}"; pause ;;
+               if user_create "$name" "$pass" "${days:-30}" "${limit:-1}"; then
+                   user_card "$name" "$pass" "${days:-30}" "${limit:-1}"
+               fi
+               pause ;;
             2) read -rp "Usuario a eliminar: " name; user_delete "$name"; pause ;;
             3) read -rp "Usuario: " name; read -rp "Días [30]: " days; user_renew "$name" "${days:-30}"; pause ;;
             4) read -rp "Usuario: " name; read -rp "Nuevo límite: " limit; user_set_limit "$name" "$limit"; pause ;;
