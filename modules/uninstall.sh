@@ -20,8 +20,12 @@ uninstall_all() {
     echo
     n_users="$(awk -F'|' 'NF>=2' "$USERS_DB" 2>/dev/null | wc -l)"
     warn "Esto no se puede deshacer. Hacé un backup antes si querés conservar usuarios o claves."
-    read -rp "Escribí DESINSTALAR para continuar: " confirm_txt
-    [[ "$confirm_txt" == DESINSTALAR ]] || { info "Cancelado."; return 0; }
+    read -rp "Escribí DESINSTALAR para continuar (o 0 para cancelar): " confirm_txt
+    confirm_txt="${confirm_txt//[[:space:]]/}"; confirm_txt="${confirm_txt^^}"
+    if [[ "$confirm_txt" != DESINSTALAR ]]; then
+        info "Cancelado: no se borró nada. Tenías que escribir la palabra DESINSTALAR completa."
+        return 0
+    fi
 
     confirm "¿Eliminar también los ${n_users} usuarios SSH creados con el panel (y cerrar sus sesiones)?" && del_users=y
     echo "Paquetes que el panel pudo instalar: ${UNINSTALL_PKGS}"
