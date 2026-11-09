@@ -64,7 +64,7 @@ Incluye también: PYTHON-WS (HTTP 101 a SSH), WS-PRO (WebSocket real), WireGuard
 Trojan (vía Xray), monitor con reinicio automático, bot y NOTI-BOT de Telegram, CHECK-USER,
 ARCHIVO ONLINE, firewall (ufw), BBR, DNS, escáner de subdominios y fixes para VPS en la nube.
 
-No incluidos a propósito: ZIVPN, UDP-CUSTOM, UDPs Request (binarios cerrados) y Psiphon.
+UDP-CUSTOM [18] usa el binario oficial del ePro Dev Team (descarga fijada por SHA-256, corre como root limitado por systemd; ver el aviso al instalar). No incluidos a propósito: ZIVPN, UDPs Request (binarios cerrados) y Psiphon.
 
 ## V2RAY/XRAY (opción 4)
 

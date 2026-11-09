@@ -7,7 +7,7 @@ declare -A UNIT=(
     [4]="${APP_SLUG}-xray"         [5]="${APP_SLUG}-stunnel"    [6]="${APP_SLUG}-dropbear"
     [7]="squid"                    [8]="openvpn-server@${APP_SLUG}" [9]="${APP_SLUG}-slowdns"
     [10]="wg-quick@${APP_SLUG}"    [11]="${APP_SLUG}-wspro"     [13]="${APP_SLUG}-hysteria"
-    [14]="${APP_SLUG}-hcr"         [21]="fail2ban"
+    [14]="${APP_SLUG}-hcr"         [18]="${APP_SLUG}-udpcustom"  [21]="fail2ban"
     [31]="${APP_SLUG}-bot"         [33]="${APP_SLUG}-checkuser"
 )
 
@@ -17,7 +17,7 @@ state_of() {
         32) [[ -f "/etc/cron.d/${APP_SLUG}-notibot" ]] && echo on || echo off ;;
         12) trojan_active && echo on || echo off ;;
         34) tg_configured && echo on || echo off ;;
-        15|16|17|18) echo na ;;
+        15|16|17) echo na ;;
         *)  local u="${UNIT[$1]:-}"
             if [[ -n "$u" ]] && svc_is_active "$u"; then echo on; else echo off; fi ;;
     esac
@@ -43,7 +43,7 @@ panel_ports() {
         "SQUID|$(conf_get SQUID_PORT)"      "OPENVPN|$(conf_get OVPN_PORT)"
         "V2RAY|$(conf_get XRAY_PORT)"       "WG|$(conf_get WG_PORT)"
         "TROJAN|$(conf_get TROJAN_PORT)"    "SS|$(conf_get SS_PORT)"
-        "CHECK|$(conf_get CHECKUSER_PORT)" "HCR|$(conf_get HCR_PORT)"
+        "CHECK|$(conf_get CHECKUSER_PORT)" "HCR|$(conf_get HCR_PORT)" "UDPC|$(conf_get UDPC_PORT)"
     )
     local e i
     for e in "${spec[@]}"; do
@@ -62,7 +62,7 @@ panel_screen() {
          "7|SQUID|$(state_of 7)" "8|OPENVPN|$(state_of 8)" "9|SLOWDNS|$(state_of 9)"
          "10|WIREGUARD|$(state_of 10)" "11|WS-PRO|$(state_of 11)" "12|TROJAN|$(state_of 12)"
          "13|HYSTERIA2|$(state_of 13)" "14|HCR|$(state_of 14)" "15|PSIPHON|na"
-         "16|UDP-ZIVPN|na" "17|UDPs Request|na" "18|UDP-CUSTOM|na" )
+         "16|UDP-ZIVPN|na" "17|UDPs Request|na" "18|UDP-CUSTOM|$(state_of 18)" )
     T1=( "19|ARCHIVO ONLINE|" "20|FIREWALL|" "21|FAIL2BAN PROTECCION|" "22|DETALLES DE SISTEMA|"
          "23|TCP BBR|" "24|DNS SERVIDOR|" "25|LIBERAR RAM|" "26|SCANNER SUBDOMINIO|"
          "27|PRUEBA DE VELOCIDAD|" "28|FIX ORACLE/AWS/AZR|" "29|HERRAMIENTAS BASICOS|"
@@ -86,7 +86,7 @@ not_available() {
     title "No disponible"
     case "$1" in
         15) echo "Psiphon es una red operada por Psiphon Inc.: no existe un servidor propio que se pueda instalar." ;;
-        *)  echo "ZIVPN, UDPs Request y UDP-CUSTOM dependen de binarios cerrados que no se pueden auditar,"
+        *)  echo "ZIVPN y UDPs Request dependen de binarios cerrados que no se pueden auditar,"
             echo "y este panel no instala software que no pueda verificarse." ;;
     esac
     echo
@@ -137,7 +137,8 @@ panel_menu() {
             12) trojan_menu ;;
             13) manage 13 HYSTERIA2     install_hysteria    hysteria_info     remove_hysteria ;;
             14) manage 14 HCR           install_hcr         hcr_info          remove_hcr ;;
-            15|16|17|18) not_available "${op}" ;;
+            15|16|17) not_available "${op}" ;;
+            18) manage 18 UDP-CUSTOM    install_udpcustom   udpcustom_info    remove_udpcustom ;;
             19) fileserver_menu ;;
             20) firewall_menu ;;
             21) manage 21 FAIL2BAN      install_fail2ban    fail2ban_status   remove_fail2ban ;;

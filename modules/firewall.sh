@@ -9,7 +9,7 @@ fw_ports() { # imprime puerto/protocolo de los servicios del panel
     for k in SSL_PORT SQUID_PORT SS_PORT XRAY_PORT TROJAN_PORT WSPROXY_PORT WSPROXY_EXTRA WSPRO_PORT CHECKUSER_PORT FILESERVER_PORT HCR_PORT; do
         for p in $(conf_get "$k"); do echo "$p/tcp"; done
     done
-    for k in SS_PORT HY_PORT WG_PORT XRAY_UDP_PORTS; do
+    for k in SS_PORT HY_PORT WG_PORT XRAY_UDP_PORTS UDPC_PORT; do
         for p in $(conf_get "$k"); do echo "$p/udp"; done
     done
     v="$(conf_get OVPN_PORT)"; p="$(conf_get OVPN_PROTO)"; [[ -n "$v" && -n "$p" ]] && echo "$v/$p"

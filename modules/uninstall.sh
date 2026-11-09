@@ -47,7 +47,7 @@ uninstall_all() {
     local fn
     for fn in remove_monitor remove_notibot remove_bot remove_badvpn remove_checkuser remove_dropbear remove_fileserver \
               remove_hcr remove_hysteria remove_openvpn remove_shadowsocks remove_slowdns remove_squid remove_stunnel \
-              remove_trojan remove_wireguard remove_wsproxy remove_wspro remove_xray; do
+              remove_trojan remove_udpcustom remove_wireguard remove_wsproxy remove_wspro remove_xray; do
         declare -F "$fn" >/dev/null && "$fn" >/dev/null 2>&1 || true
     done
 
