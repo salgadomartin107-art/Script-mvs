@@ -116,6 +116,37 @@ ask_port() {
     done
 }
 
+# Pregunta a qué puerto local se reenvía el túnel. Imprime SOLO el puerto (el menú va por stderr).
+# Se puede elegir 1-4 o escribir directamente un número de puerto (ej. 8080). El destino es siempre 127.0.0.1.
+ask_target() { # [1 = no ofrecer SOCKS PYTHON]
+    local no_py="${1:-0}" ssh_p db_p py_p c p
+    ssh_p="$(sshd_ports | head -1)"; db_p="$(conf_get DROPBEAR_PORT)"; py_p="$(wsproxy_ports 2>/dev/null | awk '{print $1}')"
+    {
+        echo "Destino (el tráfico se reenvía a este mismo VPS):"
+        echo " 1) OpenSSH     (${ssh_p})"
+        echo " 2) Dropbear    (${db_p:-no instalado})"
+        [[ "$no_py" == 1 ]] || echo " 3) SOCKS PYTHON (${py_p:-no instalado})"
+        echo " 4) Otro: escribir el puerto"
+        echo " (también podés escribir el número de puerto directamente, ej. 8080)"
+    } >&2
+    while true; do
+        read -rp "Opción o puerto [1]: " c; c="${c:-1}"; p=""
+        case "$c" in
+            1) p="$ssh_p" ;;
+            2) [[ -n "$db_p" ]] && p="$db_p" || { warn "Dropbear no está instalado."; continue; } ;;
+            3) if [[ "$no_py" == 1 ]]; then warn "Opción no disponible aquí."; continue; fi
+               [[ -n "$py_p" ]] && p="$py_p" || { warn "SOCKS PYTHON no está instalado."; continue; } ;;
+            4) read -rp "Puerto destino: " p
+               valid_port "$p" || { warn "Puerto inválido."; continue; } ;;
+            *) if valid_port "$c"; then p="$c"; else warn "Opción o puerto inválido."; continue; fi ;;
+        esac
+        if [[ "$c" == 4 || ( "$c" != [123] && -n "$p" ) ]] && ! port_in_use "$p"; then
+            warn "Ahora no hay nada escuchando en el puerto $p (si lo instalás después, no hace falta repetir esto)."
+        fi
+        printf '%s' "$p"; return 0
+    done
+}
+
 ensure_false_shell() {
     grep -qx '/bin/false' /etc/shells || echo '/bin/false' >> /etc/shells
 }

@@ -8,14 +8,9 @@ WSPROXY_STATUS_FILE="/etc/${APP_SLUG}-wsproxy.status"   # legible por el usuario
 
 _wsproxy_install() { # instancia puerto_por_defecto etiqueta modo clave_conf
     local inst="$1" def="$2" label="$3" mode="$4" key="$5"
-    local unit="${APP_SLUG}-${inst}" port tport choice status="Switching Protocols" py
+    local unit="${APP_SLUG}-${inst}" port tport status="Switching Protocols" py
     port="$(ask_port "Puerto público de $label" "$def")"
-    read -rp "Destino: 1) OpenSSH ($(sshd_ports | head -1))  2) Dropbear [1]: " choice
-    if [[ "$choice" == 2 ]]; then
-        tport="$(conf_get DROPBEAR_PORT)"; [[ -n "$tport" ]] || { err "Instalá Dropbear primero."; return 1; }
-    else
-        tport="$(sshd_ports | head -1)"
-    fi
+    tport="$(ask_target 1)" || return 1
 
     pkg_install python3 || { err "No se pudo instalar python3."; return 1; }
     py="$(command -v python3)"

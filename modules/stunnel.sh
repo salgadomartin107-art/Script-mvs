@@ -2,15 +2,9 @@
 # SSL/TLS (stunnel) hacia SSH o Dropbear. shellcheck shell=bash
 
 install_stunnel() {
-    local port target tport
+    local port tport
     port="$(ask_port "Puerto SSL público" 443)"
-    read -rp "Destino: 1) OpenSSH (22)  2) Dropbear [1]: " target
-    if [[ "$target" == 2 ]]; then
-        tport="$(conf_get DROPBEAR_PORT)"
-        [[ -n "$tport" ]] || { err "Instalá Dropbear primero."; return 1; }
-    else
-        tport=22
-    fi
+    tport="$(ask_target)" || return 1
 
     info "Instalando stunnel..."
     pkg_install stunnel4 openssl || { err "Falló la instalación."; return 1; }

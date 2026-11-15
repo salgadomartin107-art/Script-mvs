@@ -9,17 +9,12 @@ DNSTT_DIR="/etc/${APP_SLUG}-dnstt"
 DNSTT_PORT=5300
 
 install_slowdns() {
-    local ns tport choice tmp ipt
+    local ns tport tmp ipt
     echo "Antes: creá un registro A (ej: ns1.tudominio.com -> IP de este VPS) y un registro NS"
     echo "(ej: dns.tudominio.com -> ns1.tudominio.com). El 'dominio NS' de abajo es el segundo."
     read -rp "Dominio NS (ej: dns.tudominio.com): " ns
     [[ "$ns" =~ ^([a-z0-9-]+\.)+[a-z]{2,}$ ]] || { err "Dominio inválido."; return 1; }
-    read -rp "Destino: 1) OpenSSH (22)  2) Dropbear [1]: " choice
-    if [[ "$choice" == 2 ]]; then
-        tport="$(conf_get DROPBEAR_PORT)"; [[ -n "$tport" ]] || { err "Instalá Dropbear primero."; return 1; }
-    else
-        tport=22
-    fi
+    tport="$(ask_target)" || return 1
     port_in_use "$DNSTT_PORT" && ! systemctl is-active --quiet "${APP_SLUG}-slowdns" \
         && { err "El puerto $DNSTT_PORT ya está en uso."; return 1; }
 

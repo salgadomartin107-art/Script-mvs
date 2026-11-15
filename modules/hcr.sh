@@ -160,12 +160,7 @@ install_hcr() {
     ok "Versión: $ver"
 
     port="$(ask_port "Puerto de HCR (8080/8443; con 443 hace falta que esté libre)" 8443)"
-    read -rp "Destino: 1) OpenSSH ($(sshd_ports | head -1))  2) Dropbear [1]: " choice
-    if [[ "$choice" == 2 ]]; then
-        tport="$(conf_get DROPBEAR_PORT)"; [[ -n "$tport" ]] || { err "Instalá Dropbear primero."; return 1; }
-    else
-        tport="$(sshd_ports | head -1)"
-    fi
+    tport="$(ask_target)" || return 1
     echo "Transporte: 1) auto (TLS y sin TLS)  2) solo TLS  3) solo sin TLS"
     read -rp " Opción [1]: " choice
     case "$choice" in 2) transport=tls ;; 3) transport=plain ;; *) transport=auto ;; esac
