@@ -13,7 +13,7 @@ SUM="$(sha256sum "$TMP/payload.tgz" | awk '{print $1}')"
 cat <<EOF
 #!/usr/bin/env bash
 # MvS - instalador único (todo el panel va dentro de este archivo; no descarga nada salvo paquetes de apt).
-# Uso:  bash mvs-install.sh      Sistemas: Ubuntu 18.04-24.04 (x64/ARM64), Debian 8-12 (x64)
+# Uso:  bash mvs-install.sh      Sistemas: Ubuntu 18.04-26.04 (x64/ARM64), Debian 8-12 (x64)
 set -Eeuo pipefail
 [[ \${EUID:-\$(id -u)} -eq 0 ]] || { echo "Ejecutá como root (sudo -i)."; exit 1; }
 SELF="\$(readlink -f "\${BASH_SOURCE[0]}")"

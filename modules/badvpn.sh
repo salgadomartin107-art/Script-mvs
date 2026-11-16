@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # BadVPN udpgw (UDP sobre SSH), escuchando solo en localhost.
-# Si la distro no trae el paquete (Ubuntu 24.04), se compila el tag oficial de
+# Si la distro no trae el paquete (Ubuntu 24.04/26.04), se compila el tag oficial de
 # https://github.com/ambrop72/badvpn y se verifica que el commit sea el esperado.
+# CMake 4 (Ubuntu 26.04) exige CMAKE_POLICY_VERSION_MINIMUM porque badvpn pide cmake 2.8; -std=gnu11 evita el C23 de GCC 15.
 # shellcheck shell=bash
 
 BADVPN_REPO="https://github.com/ambrop72/badvpn.git"
@@ -29,7 +30,8 @@ badvpn_get_binary() {
     fi
     mkdir "$tmp/build"
     if ! ( cd "$tmp/build" \
-           && cmake ../src -DBUILD_NOTHING_BY_DEFAULT=1 -DBUILD_UDPGW=1 -DCMAKE_BUILD_TYPE=Release >/dev/null \
+           && cmake ../src -DBUILD_NOTHING_BY_DEFAULT=1 -DBUILD_UDPGW=1 -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_C_FLAGS="-std=gnu11" >/dev/null \
            && make -j"$(nproc)" >/dev/null ); then
         err "Falló la compilación de badvpn."; rm -rf "$tmp"; return 1
     fi

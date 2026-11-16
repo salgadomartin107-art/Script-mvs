@@ -7,7 +7,7 @@ Base limpia: sin keys, sin tokens ajenos, sin descargas de terceros.
 
     bash mvs-install.sh      # generado con tools/build-single.sh; trae todo el panel adentro
 
-Sistemas: Ubuntu 18.04–24.04 (x64 y ARM64) y Debian 8–12 (x64). Verifica el sistema, repara los
+Sistemas: Ubuntu 18.04–26.04 (x64 y ARM64) y Debian 8–12 (x64). Verifica el sistema, repara los
 repositorios de Debian viejo (archive.debian.org) y adapta las unidades de systemd a la versión instalada.
 Limitaciones conocidas en Debian 8: sin gestor de Xray (jq 1.4) y servicios con puertos < 1024 como root.
 

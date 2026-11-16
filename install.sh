@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Instalador de MvS. Copia el panel a /opt/<slug> e instala solo paquetes de apt.
-# Sistemas: Ubuntu 18.04–24.04 (x86_64 y ARM64) y Debian 8–12 (x86_64; ARM64 sin garantía).
+# Sistemas: Ubuntu 18.04–26.04 (x86_64 y ARM64) y Debian 8–12 (x86_64; ARM64 sin garantía).
 # Variable opcional: MVS_FORCE=1 salta la comprobación de sistema operativo.
 set -Eeuo pipefail
 
@@ -29,7 +29,7 @@ case "$OS_ID" in
     ubuntu)
         if [[ "$OS_VER" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
             n=$(( 10#${BASH_REMATCH[1]} * 100 + 10#${BASH_REMATCH[2]} ))
-            (( n >= 1804 && n <= 2404 )) && OS_OK=1
+            (( n >= 1804 && n <= 2604 )) && OS_OK=1
         fi
         [[ "$ARCH" == x86_64 || "$ARCH" == aarch64 ]] || OS_OK=0 ;;
     debian)
@@ -38,7 +38,7 @@ case "$OS_ID" in
 esac
 if (( ! OS_OK )); then
     if [[ "${MVS_FORCE:-0}" == 1 ]]; then warn "Sistema no soportado ($OS_ID $OS_VER $ARCH): continúo por MVS_FORCE=1."
-    else die "Sistema no soportado: ${OS_ID:-?} ${OS_VER:-?} ${ARCH}. Soportados: Ubuntu 18.04–24.04 (x64/ARM64) y Debian 8–12 (x64). Para forzar: MVS_FORCE=1 ./install.sh"; fi
+    else die "Sistema no soportado: ${OS_ID:-?} ${OS_VER:-?} ${ARCH}. Soportados: Ubuntu 18.04–26.04 (x64/ARM64) y Debian 8–12 (x64). Para forzar: MVS_FORCE=1 ./install.sh"; fi
 fi
 say "Sistema: ${OS_ID} ${OS_VER} (${ARCH})"
 [[ -d /run/systemd/system ]] || warn "No se detecta systemd en ejecución: los servicios del panel no van a arrancar."
