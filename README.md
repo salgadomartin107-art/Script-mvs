@@ -11,6 +11,15 @@ Sistemas: Ubuntu 18.04–26.04 (x64 y ARM64) y Debian 8–12 (x64). Verifica el 
 repositorios de Debian viejo (archive.debian.org) y adapta las unidades de systemd a la versión instalada.
 Limitaciones conocidas en Debian 8: sin gestor de Xray (jq 1.4) y servicios con puertos < 1024 como root.
 
+## SOCKS5 + UDP [36] (HevSocks5Server)
+
+Servidor SOCKS5 de código abierto (heiher/hev-socks5-server, MIT) que acompaña al "motor SOCKS" HevSocks5Tunnel de las apps.
+Soporta CONNECT, UDP ASSOCIATE y UDP-en-TCP, con varios usuarios y clave. Se compila en el VPS desde el tag fijado y se
+verifica el commit. Corre sin privilegios y con la unidad endurecida. Modo **local** (127.0.0.1, para usarlo detrás de
+SSL/TLS, SSH o PYTHON con "Destino" = su puerto, recomendado) o **público** (la clave SOCKS5 viaja sin cifrar).
+El servidor sin la sección `auth` es un proxy abierto: el panel siempre la escribe y, al instalar, comprueba que rechace
+conexiones sin credenciales (si no las rechaza, se desinstala solo). Requiere IPv6 habilitado en el kernel.
+
 ## Desinstalar (deja el VPS limpio)
 
     menu  →  [X] DESINSTALAR          o bien:   bash mvs-install.sh --uninstall   /   menu --uninstall
