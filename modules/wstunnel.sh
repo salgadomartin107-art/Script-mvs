@@ -234,6 +234,7 @@ wstunnel_info() {
     secret="$(wst_conf_get WSTUNNEL_RESTRICT_HTTP_UPGRADE_PATH_PREFIX)"
     echo "Servidor: ${mode}://0.0.0.0:${port}  ->  solo a 127.0.0.1:${tport}   (wstunnel ${WST_VERSION})"
     echo "Prefijo secreto: ${secret}"
+    echo "Usuario y clave: los de una cuenta SSH del panel (opción 5 de este menú, o [35] USUARIOS SSH)."
     wst_client_examples "$secret" "$host" "$port" "$mode" "$tport"
 }
 
@@ -268,6 +269,7 @@ wstunnel_menu() {
         bar
         echo " 1) Ver datos y comandos del cliente   3) Reinstalar / cambiar puerto, modo o destino"
         echo " 2) Cambiar el prefijo secreto         4) Quitar"
+        echo " 5) Crear usuario SSH (el que pide la app al conectar)"
         echo " 0) Volver"
         bar; read -rp " Opción: " op || return
         case "$op" in
@@ -275,6 +277,7 @@ wstunnel_menu() {
             2) wst_change_secret; pause ;;
             3) systemctl stop "$WST_UNIT" 2>/dev/null; install_wstunnel || systemctl start "$WST_UNIT" 2>/dev/null; pause ;;
             4) confirm "¿Quitar WSTUNNEL?" && remove_wstunnel; pause; return ;;
+            5) user_create_prompt; pause ;;
             0) return ;;
         esac
     done
