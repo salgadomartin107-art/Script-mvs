@@ -20,6 +20,15 @@ SSL/TLS, SSH o PYTHON con "Destino" = su puerto, recomendado) o **público** (la
 El servidor sin la sección `auth` es un proxy abierto: el panel siempre la escribe y, al instalar, comprueba que rechace
 conexiones sin credenciales (si no las rechaza, se desinstala solo). Requiere IPv6 habilitado en el kernel.
 
+## WSTUNNEL [37]
+
+Túnel TCP/UDP sobre WebSocket/HTTP2 (erebe/wstunnel, BSD-3). Se baja el binario oficial de la release fijada (v11.1.0) y se
+verifica su SHA-256 contra `checksums.txt` de la release. El servidor se instala siempre con `--restrict-to` (solo reenvía
+a UN puerto local elegido: nadie puede usarlo como proxy abierto ni abrir túneles inversos) y con un prefijo de ruta secreto
+que hace de contraseña. El prefijo va en un archivo de entorno (no aparece en `ps` ni en la unidad) y el certificado TLS es
+propio, no el embebido en el binario. Al instalar se comprueba con el propio cliente que un prefijo incorrecto sea rechazado;
+si no, se desinstala solo. Modos: `wss` (TLS) o `ws` (detrás de un CDN o de otro túnel).
+
 ## Desinstalar (deja el VPS limpio)
 
     menu  →  [X] DESINSTALAR          o bien:   bash mvs-install.sh --uninstall   /   menu --uninstall

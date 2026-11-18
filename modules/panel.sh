@@ -8,7 +8,7 @@ declare -A UNIT=(
     [7]="squid"                    [8]="openvpn-server@${APP_SLUG}" [9]="${APP_SLUG}-slowdns"
     [10]="wg-quick@${APP_SLUG}"    [11]="${APP_SLUG}-wspro"     [13]="${APP_SLUG}-hysteria"
     [14]="${APP_SLUG}-hcr"         [18]="${APP_SLUG}-udpcustom"  [21]="fail2ban"
-    [36]="${APP_SLUG}-hevsocks5"
+    [36]="${APP_SLUG}-hevsocks5"  [37]="${APP_SLUG}-wstunnel"
     [31]="${APP_SLUG}-bot"         [33]="${APP_SLUG}-checkuser"
 )
 
@@ -44,7 +44,7 @@ panel_ports() {
         "SQUID|$(conf_get SQUID_PORT)"      "OPENVPN|$(conf_get OVPN_PORT)"
         "V2RAY|$(conf_get XRAY_PORT)"       "WG|$(conf_get WG_PORT)"
         "TROJAN|$(conf_get TROJAN_PORT)"    "SS|$(conf_get SS_PORT)"
-        "CHECK|$(conf_get CHECKUSER_PORT)" "HCR|$(conf_get HCR_PORT)" "UDPC|$(conf_get UDPC_PORT)" "SOCKS5|$(conf_get HEVS_PORT)"
+        "CHECK|$(conf_get CHECKUSER_PORT)" "HCR|$(conf_get HCR_PORT)" "UDPC|$(conf_get UDPC_PORT)" "SOCKS5|$(conf_get HEVS_PORT)" "WSTUN|$(conf_get WST_PORT)"
     )
     local e i
     for e in "${spec[@]}"; do
@@ -63,7 +63,7 @@ panel_screen() {
          "7|SQUID|$(state_of 7)" "8|OPENVPN|$(state_of 8)" "9|SLOWDNS|$(state_of 9)"
          "10|WIREGUARD|$(state_of 10)" "11|WS-PRO|$(state_of 11)" "12|TROJAN|$(state_of 12)"
          "13|HYSTERIA2|$(state_of 13)" "14|HCR|$(state_of 14)" "15|PSIPHON|na"
-         "16|UDP-ZIVPN|na" "17|UDPs Request|na" "18|UDP-CUSTOM|$(state_of 18)" "36|SOCKS5 + UDP|$(state_of 36)" )
+         "16|UDP-ZIVPN|na" "17|UDPs Request|na" "18|UDP-CUSTOM|$(state_of 18)" "36|SOCKS5 + UDP|$(state_of 36)" "37|WSTUNNEL|$(state_of 37)" )
     T1=( "19|ARCHIVO ONLINE|" "20|FIREWALL|" "21|FAIL2BAN PROTECCION|" "22|DETALLES DE SISTEMA|"
          "23|TCP BBR|" "24|DNS SERVIDOR|" "25|LIBERAR RAM|" "26|SCANNER SUBDOMINIO|"
          "27|PRUEBA DE VELOCIDAD|" "28|FIX ORACLE/AWS/AZR|" "29|HERRAMIENTAS BASICOS|"
@@ -141,6 +141,7 @@ panel_menu() {
             15|16|17) not_available "${op}" ;;
             18) manage 18 UDP-CUSTOM    install_udpcustom   udpcustom_info    remove_udpcustom ;;
             36) hevsocks_menu ;;
+            37) wstunnel_menu ;;
             19) fileserver_menu ;;
             20) firewall_menu ;;
             21) manage 21 FAIL2BAN      install_fail2ban    fail2ban_status   remove_fail2ban ;;

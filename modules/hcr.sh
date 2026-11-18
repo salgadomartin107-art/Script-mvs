@@ -98,26 +98,26 @@ EOF
     chmod 755 "$HCR_JAIL"
 }
 
-hcr_tls_setup() { # host -> deja $HCR_DIR/fullchain.pem y privkey.pem
-    local host="$1" op c k san
+hcr_tls_setup() { # host [dir usuario] -> deja fullchain.pem y privkey.pem (por defecto en $HCR_DIR; también lo usa WSTUNNEL)
+    local host="$1" d="${2:-$HCR_DIR}" u="${3:-$HCR_USER}" op c k san
     echo " 1) Generar certificado autofirmado (en la app: activá \"Permitir inseguro\")"
     echo " 2) Usar mi certificado (fullchain.pem y privkey.pem de un dominio real)"
     read -rp " Opción [1]: " op
-    install -d -m 750 -o root -g "$HCR_USER" "$HCR_DIR"
+    install -d -m 750 -o root -g "$u" "$d"
     if [[ "$op" == 2 ]]; then
         read -rp "Ruta de fullchain.pem: " c; read -rp "Ruta de privkey.pem: " k
         [[ -f "$c" && -f "$k" ]] || { err "No encuentro esos archivos."; return 1; }
         [[ "$(openssl x509 -in "$c" -pubkey -noout 2>/dev/null)" == "$(openssl pkey -in "$k" -passin pass: -pubout 2>/dev/null)" \
            && -n "$(openssl x509 -in "$c" -noout -subject 2>/dev/null)" ]] \
             || { err "El certificado no se puede leer o no corresponde a la clave."; return 1; }
-        install -m 640 -o root -g "$HCR_USER" "$c" "$HCR_DIR/fullchain.pem"
-        install -m 640 -o root -g "$HCR_USER" "$k" "$HCR_DIR/privkey.pem"
+        install -m 640 -o root -g "$u" "$c" "$d/fullchain.pem"
+        install -m 640 -o root -g "$u" "$k" "$d/privkey.pem"
     else
         [[ "$host" =~ ^[0-9.]+$ ]] && san="IP:$host" || san="DNS:$host"
         openssl req -x509 -nodes -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -days 3650 \
             -subj "/CN=${host}" -addext "subjectAltName=${san}" \
-            -keyout "$HCR_DIR/privkey.pem" -out "$HCR_DIR/fullchain.pem" >/dev/null 2>&1 || { err "No se pudo generar el certificado."; return 1; }
-        chown "root:$HCR_USER" "$HCR_DIR/privkey.pem" "$HCR_DIR/fullchain.pem"; chmod 640 "$HCR_DIR/privkey.pem" "$HCR_DIR/fullchain.pem"
+            -keyout "$d/privkey.pem" -out "$d/fullchain.pem" >/dev/null 2>&1 || { err "No se pudo generar el certificado."; return 1; }
+        chown "root:$u" "$d/privkey.pem" "$d/fullchain.pem"; chmod 640 "$d/privkey.pem" "$d/fullchain.pem"
     fi
 }
 
