@@ -67,9 +67,26 @@ def serve(c, a):
                 c.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
             else:
                 c.sendall(b"HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n")
-            t = dial("127.0.0.1", a.target)
-            if rest:
-                t.sendall(rest)
+            # Tras el payload, la app suele mandar por la misma conexión el handshake del cliente wstunnel:
+            # se espera un instante lo que llegue para decidir si va a wstunnel o directo al SSH.
+            nxt = rest
+            if not nxt:
+                ready, _, _ = select.select([c], [], [], a.wait)
+                if ready:
+                    nxt = c.recv(65536)
+                    if not nxt:
+                        return
+            if nxt[:4] != b"SSH-" and b"authorization.bearer." in nxt[:MAX_HEAD].lower():
+                while b"\r\n\r\n" not in nxt and len(nxt) < MAX_HEAD:
+                    more = c.recv(4096)
+                    if not more:
+                        return
+                    nxt += more
+                t = dial("127.0.0.1", a.internal)
+            else:
+                t = dial("127.0.0.1", a.target)
+            if nxt:
+                t.sendall(nxt)
         pipe(c, t, a.idle)
     except Exception:
         pass
@@ -95,6 +112,7 @@ def main():
     ap.add_argument("--internal", required=True, type=int, help="puerto local de wstunnel")
     ap.add_argument("--target", required=True, type=int, help="puerto local de SSH/Dropbear")
     ap.add_argument("--idle", type=int, default=3600)
+    ap.add_argument("--wait", type=float, default=1.0, help="segundos de espera tras el 101")
     a = ap.parse_args()
     srv = socket.socket()
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
