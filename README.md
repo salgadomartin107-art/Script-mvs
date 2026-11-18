@@ -29,6 +29,12 @@ que hace de contraseña. El prefijo va en un archivo de entorno (no aparece en `
 propio, no el embebido en el binario. Al instalar se comprueba con el propio cliente que un prefijo incorrecto sea rechazado;
 si no, se desinstala solo. Modos: `wss` (TLS) o `ws` (detrás de un CDN o de otro túnel).
 
+**Frente 101 (solo modo `ws`, opcional):** wstunnel contesta `400` a cualquier petición que no sea de su propio cliente.
+Con el frente activo (`lib/py/wstfront.py`, unidad `mvs-wstunnel-front`) el puerto público contesta
+`101 Switching Protocols` (o `200 Connection established` a un CONNECT) a los payloads de HTTP Custom / HTTP Injector y los
+conecta directo con el destino fijo (SSH/Dropbear); el cliente wstunnel real pasa al wstunnel interno (127.0.0.1) con su
+prefijo secreto. La vía de payload no usa el prefijo: la protege el usuario/clave SSH.
+
 ## Desinstalar (deja el VPS limpio)
 
     menu  →  [X] DESINSTALAR          o bien:   bash mvs-install.sh --uninstall   /   menu --uninstall

@@ -12,6 +12,7 @@ WST_BIN="/usr/local/bin/${APP_SLUG}-wstunnel"
 WST_DIR="/etc/${APP_SLUG}-wstunnel"
 WST_USER="${APP_SLUG}-wstunnel"
 WST_ENV="${WST_DIR}/env"
+WST_FRONT="${WST_UNIT}-front"
 WST_VERSION="11.1.0"
 WST_MAX_BIN=$((64 * 1024 * 1024))
 declare -A WST_SHA=(
@@ -79,13 +80,53 @@ wst_write_env() { # secreto
     chown root:"$WST_USER" "$WST_ENV"; chmod 640 "$WST_ENV"
 }
 
-wst_write_unit() { # modo(wss|ws) puerto destino
-    local mode="$1" port="$2" tport="$3" cap="" tls="" url
+# Frente 101 (lib/py/wstfront.py): escucha en el puerto público y deja a wstunnel en 127.0.0.1:$iport
+wst_front_write_unit() { # puerto_publico puerto_interno destino
+    local port="$1" iport="$2" tport="$3" cap="" py; py="$(command -v python3)"
     (( port < 1024 )) && cap="CAP_NET_BIND_SERVICE"
+    cat > "/etc/systemd/system/${WST_FRONT}.service" <<EOF
+[Unit]
+Description=${APP_NAME} WSTUNNEL frente 101 (payloads HTTP Custom)
+After=network-online.target ${WST_UNIT}.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=${WST_USER}
+ExecStart=${py} ${ROOT}/lib/py/wstfront.py --listen ${port} --internal ${iport} --target ${tport}
+AmbientCapabilities=${cap}
+CapabilityBoundingSet=${cap}
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+UMask=0077
+LimitNOFILE=65535
+LimitCORE=0
+Restart=on-failure
+RestartSec=3s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+}
+
+wst_write_unit() { # modo(wss|ws) puerto destino [puerto_interno: wstunnel solo en loopback]
+    local mode="$1" port="$2" tport="$3" iport="${4:-}" cap="" tls="" url
+    (( port < 1024 )) && cap="CAP_NET_BIND_SERVICE"
+    [[ -n "$iport" ]] && cap=""
     if [[ "$mode" == wss ]]; then
         tls=" --tls-certificate ${WST_DIR}/fullchain.pem --tls-private-key ${WST_DIR}/privkey.pem"
     fi
     url="${mode}://0.0.0.0:${port}"
+    [[ -n "$iport" ]] && url="ws://127.0.0.1:${iport}"
     cat > "/etc/systemd/system/${WST_UNIT}.service" <<EOF
 [Unit]
 Description=${APP_NAME} WSTUNNEL (servidor)
@@ -167,7 +208,7 @@ wst_client_examples() { # secreto host puerto modo destino
 }
 
 install_wstunnel() {
-    local mode choice port tport host secret chk
+    local mode choice port tport host secret chk front="" iport=""
     echo "WSTUNNEL: túnel TCP/UDP sobre WebSocket/HTTP2 (erebe/wstunnel ${WST_VERSION})."
     wst_get_binary || return 1
     ensure_service_user "$WST_USER"
@@ -201,10 +242,30 @@ install_wstunnel() {
     fi
     wst_valid_secret "$secret" || { err "No se pudo generar el prefijo secreto."; return 1; }
 
+    if [[ "$mode" == ws ]]; then
+        echo "Payloads de HTTP Custom / HTTP Injector: wstunnel solo contesta 101 a su propio cliente y 400 al resto."
+        echo "El frente 101 contesta \"101 Switching Protocols\" a esos payloads y los conecta directo a ${tport} (SSH/Dropbear),"
+        echo "y deja pasar al cliente wstunnel real. Ojo: esa vía no usa el prefijo secreto; la protege el usuario/clave SSH."
+        read -rp "¿Activar el frente 101? [S/n]: " chk
+        if [[ ! "$chk" =~ ^[nN] ]]; then
+            command -v python3 >/dev/null 2>&1 || pkg_install python3 || return 1
+            front=1; iport=45871
+            while port_in_use "$iport" && [[ "$iport" != "$(conf_get WST_IPORT)" ]]; do iport=$((iport + 1)); done
+        fi
+    fi
+
+    systemctl disable --now "$WST_FRONT" >/dev/null 2>&1 || true
+    rm -f "/etc/systemd/system/${WST_FRONT}.service"
     wst_write_env "$secret"
-    wst_write_unit "$mode" "$port" "$tport"
+    wst_write_unit "$mode" "$port" "$tport" "$iport"
     svc_enable_restart "$WST_UNIT"; sleep 2
     conf_set WST_PORT "$port"; conf_set WST_MODE "$mode"; conf_set WST_TARGET "$tport"; conf_set WST_HOST "$host"
+    conf_set WST_IPORT "$iport"
+    if [[ -n "$front" ]]; then
+        wst_front_write_unit "$port" "$iport" "$tport"
+        svc_enable_restart "$WST_FRONT"; sleep 1
+        svc_is_active "$WST_FRONT" || { err "El frente 101 no arrancó. Revisá: journalctl -u ${WST_FRONT} -n 30"; return 1; }
+    fi
     if ! svc_is_active "$WST_UNIT"; then
         err "No arrancó. Revisá: journalctl -u ${WST_UNIT} -n 30"; return 1
     fi
@@ -221,6 +282,7 @@ install_wstunnel() {
     conf_set WST_FWPORT "$port"
     ufw status 2>/dev/null | grep -q "Status: active" && ufw allow "$port/tcp" >/dev/null 2>&1
     ok "WSTUNNEL activo: ${mode}://0.0.0.0:${port} -> 127.0.0.1:${tport}"
+    [[ -n "$front" ]] && ok "Frente 101 activo: un payload HTTP en el puerto ${port} recibe 101 Switching Protocols y va a ${tport}."
     warn "Abrí el puerto TCP ${port} en el firewall de la nube (NSG de Azure)."
     bar
     printf ' %sPrefijo secreto:%s %s\n' "$Y" "$N" "$secret"
@@ -234,6 +296,7 @@ wstunnel_info() {
     secret="$(wst_conf_get WSTUNNEL_RESTRICT_HTTP_UPGRADE_PATH_PREFIX)"
     echo "Servidor: ${mode}://0.0.0.0:${port}  ->  solo a 127.0.0.1:${tport}   (wstunnel ${WST_VERSION})"
     echo "Prefijo secreto: ${secret}"
+    [[ -n "$(conf_get WST_IPORT)" ]] && echo "Frente 101: ACTIVO (payload HTTP -> 101 Switching Protocols -> 127.0.0.1:${tport}; cliente wstunnel -> túnel con prefijo)"
     echo "Usuario y clave: los de una cuenta SSH del panel (opción 5 de este menú, o [35] USUARIOS SSH)."
     wst_client_examples "$secret" "$host" "$port" "$mode" "$tport"
 }
@@ -252,11 +315,13 @@ wst_change_secret() {
 
 remove_wstunnel() {
     local p k; p="$(conf_get WST_FWPORT)"
+    systemctl disable --now "$WST_FRONT" >/dev/null 2>&1 || true
     systemctl disable --now "$WST_UNIT" >/dev/null 2>&1 || true
+    rm -f "/etc/systemd/system/${WST_FRONT}.service"
     if [[ -n "$p" ]] && ufw status 2>/dev/null | grep -q "Status: active"; then ufw delete allow "$p/tcp" >/dev/null 2>&1; fi
     rm -f "/etc/systemd/system/${WST_UNIT}.service" "$WST_BIN"; rm -rf "$WST_DIR"; systemctl daemon-reload
     id "$WST_USER" >/dev/null 2>&1 && userdel "$WST_USER" >/dev/null 2>&1
-    for k in WST_PORT WST_MODE WST_TARGET WST_HOST WST_FWPORT; do conf_set "$k" ""; done
+    for k in WST_PORT WST_MODE WST_TARGET WST_HOST WST_FWPORT WST_IPORT; do conf_set "$k" ""; done
     ok "WSTUNNEL eliminado."
 }
 
@@ -275,7 +340,7 @@ wstunnel_menu() {
         case "$op" in
             1) wstunnel_info; pause ;;
             2) wst_change_secret; pause ;;
-            3) systemctl stop "$WST_UNIT" 2>/dev/null; install_wstunnel || systemctl start "$WST_UNIT" 2>/dev/null; pause ;;
+            3) systemctl stop "$WST_FRONT" "$WST_UNIT" 2>/dev/null; install_wstunnel || systemctl start "$WST_UNIT" "$WST_FRONT" 2>/dev/null; pause ;;
             4) confirm "¿Quitar WSTUNNEL?" && remove_wstunnel; pause; return ;;
             5) user_create_prompt; pause ;;
             0) return ;;
