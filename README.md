@@ -34,6 +34,7 @@ Con el frente activo (`lib/py/wstfront.py`, unidad `mvs-wstunnel-front`) el puer
 `101 Switching Protocols` (o `200 Connection established` a un CONNECT) a los payloads de HTTP Custom / HTTP Injector y los
 conecta directo con el destino fijo (SSH/Dropbear); el cliente wstunnel real pasa al wstunnel interno (127.0.0.1) con su
 prefijo secreto. La vía de payload no usa el prefijo: la protege el usuario/clave SSH.
+Un payload con varias peticiones HTTP seguidas (bloques `[split]`, por ejemplo `MKCOL … [split] GET … Upgrade: websocket`) recibe un 101 por cada una; al llegar SSH o el handshake de wstunnel se decide el destino. También sirve para perfiles de la app en modo SSH + payload apuntando a ese puerto.
 
 ## Desinstalar (deja el VPS limpio)
 

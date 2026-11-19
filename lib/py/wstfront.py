@@ -9,12 +9,15 @@
   - Si el cliente empieza directo con "SSH-", se reenvía tal cual.
 """
 import argparse
+import re
 import select
 import socket
 import sys
 import threading
 
 MAX_HEAD = 16384
+MAX_REQS = 8
+HTTP_REQ = re.compile(rb"[A-Za-z-]{2,20} \S+ HTTP/1\.[01]\r?\n")
 SLOTS = threading.BoundedSemaphore(500)
 
 
@@ -34,6 +37,13 @@ def pipe(c, t, idle):
             if not data:
                 return
             (t if s is c else c).sendall(data)
+
+
+def reply(c, head):
+    if head[:8].upper() == b"CONNECT ":
+        c.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
+    else:
+        c.sendall(b"HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n")
 
 
 def dial(host, port):
@@ -70,19 +80,29 @@ def serve(c, a):
             t = dial("127.0.0.1", a.internal)
             t.sendall(buf)
         else:
-            if head[:8].upper() == b"CONNECT ":
-                c.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
-            else:
-                c.sendall(b"HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n")
-            # Tras el payload, la app suele mandar por la misma conexión el handshake del cliente wstunnel:
-            # se espera un instante lo que llegue para decidir si va a wstunnel o directo al SSH.
+            # Un payload puede traer VARIAS peticiones HTTP seguidas (bloques con [split]): cada una recibe su
+            # propia respuesta 101/200 y, cuando llega algo que no es HTTP (SSH o el handshake de wstunnel), se decide.
             nxt = rest
-            if not nxt:
-                ready, _, _ = select.select([c], [], [], a.wait)
-                if ready:
-                    nxt = c.recv(65536)
-                    if not nxt:
-                        return
+            for n in range(MAX_REQS):
+                reply(c, head)
+                nxt = nxt.lstrip(b"\r\n")   # los bloques [split] suelen empezar con líneas en blanco
+                if not nxt:
+                    ready, _, _ = select.select([c], [], [], a.wait)
+                    if ready:
+                        nxt = c.recv(65536)
+                        if not nxt:
+                            return
+                        nxt = nxt.lstrip(b"\r\n")
+                if nxt and nxt[:4] != b"SSH-" and HTTP_REQ.match(nxt) and b"authorization.bearer." not in nxt.lower():
+                    while b"\r\n\r\n" not in nxt and len(nxt) < MAX_HEAD:
+                        more = c.recv(4096)
+                        if not more:
+                            return
+                        nxt += more
+                    head, _, nxt = nxt.partition(b"\r\n\r\n")
+                    note("otra petición HTTP del payload (%d)" % (n + 2))
+                    continue
+                break
             if not nxt:
                 note("tras el 101 no llegó nada en %.1fs: se conecta directo al destino" % a.wait)
             if nxt[:4] != b"SSH-" and b"authorization.bearer." in nxt[:MAX_HEAD].lower():
