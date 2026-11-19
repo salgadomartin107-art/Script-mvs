@@ -11,10 +11,16 @@
 import argparse
 import select
 import socket
+import sys
 import threading
 
 MAX_HEAD = 16384
 SLOTS = threading.BoundedSemaphore(500)
+
+
+def note(msg):
+    """Una línea al journal (solo decisiones, nunca rutas ni cabeceras: el prefijo secreto va en la ruta)."""
+    print(msg, file=sys.stderr, flush=True)
 
 
 def pipe(c, t, idle):
@@ -60,6 +66,7 @@ def serve(c, a):
         low = head.lower()
         c.settimeout(None)
         if b"authorization.bearer." in low:
+            note("handshake wstunnel directo")
             t = dial("127.0.0.1", a.internal)
             t.sendall(buf)
         else:
@@ -76,7 +83,10 @@ def serve(c, a):
                     nxt = c.recv(65536)
                     if not nxt:
                         return
+            if not nxt:
+                note("tras el 101 no llegó nada en %.1fs: se conecta directo al destino" % a.wait)
             if nxt[:4] != b"SSH-" and b"authorization.bearer." in nxt[:MAX_HEAD].lower():
+                note("payload -> 101 -> handshake wstunnel")
                 while b"\r\n\r\n" not in nxt and len(nxt) < MAX_HEAD:
                     more = c.recv(4096)
                     if not more:
@@ -84,6 +94,8 @@ def serve(c, a):
                     nxt += more
                 t = dial("127.0.0.1", a.internal)
             else:
+                if nxt:
+                    note("payload -> 101 -> flujo directo al destino")
                 t = dial("127.0.0.1", a.target)
             if nxt:
                 t.sendall(nxt)
@@ -112,7 +124,7 @@ def main():
     ap.add_argument("--internal", required=True, type=int, help="puerto local de wstunnel")
     ap.add_argument("--target", required=True, type=int, help="puerto local de SSH/Dropbear")
     ap.add_argument("--idle", type=int, default=3600)
-    ap.add_argument("--wait", type=float, default=1.0, help="segundos de espera tras el 101")
+    ap.add_argument("--wait", type=float, default=4.0, help="segundos de espera tras el 101")
     a = ap.parse_args()
     srv = socket.socket()
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
