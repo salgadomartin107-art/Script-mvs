@@ -15,6 +15,7 @@ declare -A UNIT=(
 state_of() {
     case "$1" in
         30) [[ -f "/etc/cron.d/${APP_SLUG}-monitor" ]] && echo on || echo off ;;
+        38) optimize_any_on && echo on || echo off ;;
         32) [[ -f "/etc/cron.d/${APP_SLUG}-notibot" ]] && echo on || echo off ;;
         12) trojan_active && echo on || echo off ;;
         34) tg_configured && echo on || echo off ;;
@@ -45,6 +46,7 @@ panel_ports() {
         "V2RAY|$(conf_get XRAY_PORT)"       "WG|$(conf_get WG_PORT)"
         "TROJAN|$(conf_get TROJAN_PORT)"    "SS|$(conf_get SS_PORT)"
         "CHECK|$(conf_get CHECKUSER_PORT)" "HCR|$(conf_get HCR_PORT)" "UDPC|$(conf_get UDPC_PORT)" "SOCKS5|$(conf_get HEVS_PORT)" "WSTUN|$(conf_get WST_PORT)"
+        "NGINX|$(conf_get NGX_PORT)" "WSFY|$(conf_get WSFY_PORT)"
     )
     local e i
     for e in "${spec[@]}"; do
@@ -68,7 +70,7 @@ panel_screen() {
          "23|TCP BBR|" "24|DNS SERVIDOR|" "25|LIBERAR RAM|" "26|SCANNER SUBDOMINIO|"
          "27|PRUEBA DE VELOCIDAD|" "28|FIX ORACLE/AWS/AZR|" "29|HERRAMIENTAS BASICOS|"
          "30|MONITOR|$(state_of 30)" "31|BOT TELEGRAM|$(state_of 31)" "32|NOTI-BOT|$(state_of 32)"
-         "33|CHECK-USER|$(state_of 33)" "34|TELEGRAM|$(state_of 34)" "35|USUARIOS SSH|"
+         "33|CHECK-USER|$(state_of 33)" "34|TELEGRAM|$(state_of 34)" "35|USUARIOS SSH|" "38|OPTIMIZAR|$(state_of 38)"
          "Z|ACTUALIZAR SCRIPT|" "X|DESINSTALAR|" "0|◄ SALIR|" )
 
     clear
@@ -142,6 +144,7 @@ panel_menu() {
             18) manage 18 UDP-CUSTOM    install_udpcustom   udpcustom_info    remove_udpcustom ;;
             36) hevsocks_menu ;;
             37) wstunnel_menu ;;
+            38) optimize_menu ;;
             19) fileserver_menu ;;
             20) firewall_menu ;;
             21) manage 21 FAIL2BAN      install_fail2ban    fail2ban_status   remove_fail2ban ;;

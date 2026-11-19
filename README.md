@@ -36,6 +36,19 @@ conecta directo con el destino fijo (SSH/Dropbear); el cliente wstunnel real pas
 prefijo secreto. La vía de payload no usa el prefijo: la protege el usuario/clave SSH.
 Un payload con varias peticiones HTTP seguidas (bloques `[split]`, por ejemplo `MKCOL … [split] GET … Upgrade: websocket`) recibe un 101 por cada una; al llegar SSH o el handshake de wstunnel se decide el destino. También sirve para perfiles de la app en modo SSH + payload apuntando a ese puerto.
 
+## OPTIMIZAR [38]
+
+Seis ajustes que se activan y desactivan de a uno (el menú muestra `[ON]`/`[OFF]`). Lo que se instala con apt se instala
+sin arrancar solo, la configuración se valida antes de arrancar y si algo falla se deshace. Al desactivar solo se quita
+lo que instaló el panel.
+
+1. **Ping WebSocket cada 25 s**: `--websocket-ping-frequency` en WSTUNNEL, `--ping` en WS-PRO (nuevo en `wsproxy.py`, no cuenta como actividad para el tiempo de inactividad) y `--heartbeat` en Websockify. Se reaplica solo cuando reinstalás esos servicios.
+2. **Nginx sin buffering**: proxy WebSocket (`proxy_buffering off`, `proxy_request_buffering off`, timeouts de 1 h) en un puerto público hacia WS-PRO, WSTUNNEL, Websockify u otro puerto local. Sirve para clientes con `Upgrade`; un payload sin Upgrade no atraviesa Nginx.
+3. **SSH con keepalive**: OpenSSH (`ClientAliveInterval 30`, `ClientAliveCountMax 3`, `TCPKeepAlive yes`, en `sshd_config.d` o, en OpenSSH viejo, al principio de `sshd_config`, validado con `sshd -t`) y Dropbear (`-K 30`).
+4. **Monitoreo de CPU, RAM y tráfico**: vista en vivo (CPU, RAM, swap, carga, velocidad de red, procesos) y un historial opcional de 7 días (una muestra por minuto, `bin/statlog`) con resumen de 1 h / 24 h / 7 días.
+5. **Unbound DNS**: caché local en `127.0.0.1:53` (reenvío a 1.1.1.1/8.8.8.8 o recursivo desde las raíces) con prueba real de resolución. Opcionalmente pasa a ser el DNS del servidor (systemd-resolved o `resolv.conf`) y al desactivar se restaura. No queda abierto a Internet.
+6. **Websockify**: WebSocket (RFC 6455) a TCP hacia un único puerto local, con usuario propio y servicio endurecido.
+
 ## Desinstalar (deja el VPS limpio)
 
     menu  →  [X] DESINSTALAR          o bien:   bash mvs-install.sh --uninstall   /   menu --uninstall

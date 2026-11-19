@@ -13,7 +13,7 @@ USERS_DB="${DATA_DIR}/users.db"
 USERS_GROUP="${APP_SLUG}-users"
 MVS_UNITS=("${APP_SLUG}-dropbear" squid shadowsocks-libev "${APP_SLUG}-udpgw" "${APP_SLUG}-stunnel" "${APP_SLUG}-xray"
     "${APP_SLUG}-slowdns" "${APP_SLUG}-wsproxy" "${APP_SLUG}-wspro" "${APP_SLUG}-hysteria"
-    "${APP_SLUG}-checkuser" "${APP_SLUG}-fileserver" "${APP_SLUG}-bot"
+    "${APP_SLUG}-checkuser" "${APP_SLUG}-fileserver" "${APP_SLUG}-bot" "${APP_SLUG}-websockify"
     "openvpn-server@${APP_SLUG}" "wg-quick@${APP_SLUG}" fail2ban)
 
 if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then

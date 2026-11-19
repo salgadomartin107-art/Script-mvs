@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Cron cada minuto: guarda CPU %, RAM %, swap %, carga y contadores de red (interfaz de salida)
+# en un CSV que usa el resumen de OPTIMIZAR [38]. Se queda con los últimos 7 días.
+set -uo pipefail
+ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+source "$ROOT/lib/common.sh"
+[[ ${EUID:-$(id -u)} -eq 0 ]] || exit 1
+
+DIR="/var/lib/${APP_SLUG}-stats"
+CSV="$DIR/stats.csv"
+PREV="$DIR/cpu.prev"
+KEEP=10080
+install -d -m 700 "$DIR"
+
+read -r _ u n s i w q sq st _ < /proc/stat
+total=$((u + n + s + i + w + q + sq + st)); idle=$((i + w))
+cpu=0
+if [[ -s "$PREV" ]]; then
+    read -r pt pi < "$PREV"
+    dt=$((total - pt)); di=$((idle - pi))
+    (( dt > 0 )) && cpu=$(( (100 * (dt - di)) / dt ))
+fi
+printf '%s %s\n' "$total" "$idle" > "$PREV"
+
+mem="$(awk '/^MemTotal:/{t=$2} /^MemAvailable:/{a=$2} END{if(t>0) printf "%d", (t-a)*100/t; else print 0}' /proc/meminfo)"
+swap="$(awk '/^SwapTotal:/{t=$2} /^SwapFree:/{f=$2} END{if(t>0) printf "%d", (t-f)*100/t; else print 0}' /proc/meminfo)"
+load="$(cut -d' ' -f1 /proc/loadavg)"
+
+if_def="$(ip route show default 2>/dev/null | awk '{for(k=1;k<NF;k++) if($k=="dev"){print $(k+1); exit}}')"
+if [[ -n "$if_def" ]]; then
+    read -r rx tx < <(awk -v i="${if_def}:" '$1==i {print $2, $10}' /proc/net/dev)
+else
+    read -r rx tx < <(awk 'NR>2 && $1!="lo:" {r+=$2; t+=$10} END{print r+0, t+0}' /proc/net/dev)
+fi
+
+printf '%s,%s,%s,%s,%s,%s,%s\n' "$(date +%s)" "$cpu" "$mem" "$swap" "$load" "${rx:-0}" "${tx:-0}" >> "$CSV"
+lines="$(wc -l < "$CSV")"
+if (( lines > KEEP + 600 )); then
+    tail -n "$KEEP" "$CSV" > "$CSV.tmp" && mv -f "$CSV.tmp" "$CSV"
+fi
+exit 0

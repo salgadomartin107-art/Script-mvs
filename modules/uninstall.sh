@@ -45,7 +45,7 @@ uninstall_all() {
     # --- 2. quitar cada servicio con su propia rutina ---
     info "Quitando servicios..."
     local fn
-    for fn in remove_monitor remove_notibot remove_bot remove_badvpn remove_checkuser remove_dropbear remove_fileserver \
+    for fn in remove_optimize remove_monitor remove_notibot remove_bot remove_badvpn remove_checkuser remove_dropbear remove_fileserver \
               remove_hcr remove_hysteria remove_openvpn remove_shadowsocks remove_slowdns remove_squid remove_stunnel \
               remove_trojan remove_wstunnel remove_hevsocks5 remove_udpcustom remove_wireguard remove_wsproxy remove_wspro remove_xray; do
         declare -F "$fn" >/dev/null && "$fn" >/dev/null 2>&1 || true
@@ -66,7 +66,7 @@ uninstall_all() {
     rm -rf /etc/${APP_SLUG}-* /etc/${APP_SLUG}-*.txt /etc/${APP_SLUG}-*.status
     rm -f /etc/cron.d/${APP_SLUG} /etc/cron.d/${APP_SLUG}-*
     rm -f /etc/sysctl.d/*-${APP_SLUG}-*.conf /etc/fail2ban/jail.d/${APP_SLUG}.local "/etc/pam.d/${APP_SLUG}-openvpn"
-    rm -f "/etc/systemd/resolved.conf.d/${APP_SLUG}.conf" "/etc/apt/apt.conf.d/99${APP_SLUG}-archive"
+    rm -f "/etc/systemd/resolved.conf.d/${APP_SLUG}.conf" "/etc/systemd/resolved.conf.d/zz-${APP_SLUG}-unbound.conf" "/etc/ssh/sshd_config.d/92-${APP_SLUG}-keepalive.conf" "/etc/apt/apt.conf.d/99${APP_SLUG}-archive"
     rm -rf "/etc/openvpn/server/${APP_SLUG}" "/etc/openvpn/server/${APP_SLUG}.conf" "/etc/wireguard/${APP_SLUG}.conf"
     systemctl restart systemd-resolved >/dev/null 2>&1 || true
     # reglas de iptables propias (jaula de HCR)

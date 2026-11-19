@@ -33,6 +33,7 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 EOF
+    [[ "$mode" == ws ]] && declare -F opt_ws_ping_sync >/dev/null && opt_ws_ping_sync
     [[ "$mode" == raw ]] && printf '%s\n' "$status" > "$WSPROXY_STATUS_FILE" && chmod 644 "$WSPROXY_STATUS_FILE"
     svc_enable_restart "$unit"
     conf_set "${key}_PORT" "$port"; conf_set "${key}_TARGET" "$tport"

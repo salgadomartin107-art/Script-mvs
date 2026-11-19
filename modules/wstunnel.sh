@@ -258,6 +258,7 @@ install_wstunnel() {
     rm -f "/etc/systemd/system/${WST_FRONT}.service"
     wst_write_env "$secret"
     wst_write_unit "$mode" "$port" "$tport" "$iport"
+    declare -F opt_ws_ping_sync >/dev/null && opt_ws_ping_sync
     svc_enable_restart "$WST_UNIT"; sleep 2
     conf_set WST_PORT "$port"; conf_set WST_MODE "$mode"; conf_set WST_TARGET "$tport"; conf_set WST_HOST "$host"
     conf_set WST_IPORT "$iport"

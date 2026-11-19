@@ -17,6 +17,7 @@ import select
 import socket
 import struct
 import threading
+import time
 
 GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 MAX_HEAD = 16384
@@ -82,8 +83,9 @@ def pipe_raw(c, t, idle):
             (t if s is c else c).sendall(data)
 
 
-def pipe_ws(c, t, idle, buf):
+def pipe_ws(c, t, idle, buf, ping=0):
     pair = (c, t)
+    last_ping = last_act = time.monotonic()   # los pings/pongs no cuentan como actividad para el tiempo de inactividad
     while True:
         while len(buf) >= 2:
             op = buf[0] & 0x0F
@@ -109,6 +111,7 @@ def pipe_ws(c, t, idle, buf):
             if masked:
                 payload = unmask(payload, mask)
             if op in (0, 1, 2):
+                last_act = time.monotonic()
                 if payload:
                     t.sendall(payload)
             elif op == 8:
@@ -116,9 +119,19 @@ def pipe_ws(c, t, idle, buf):
                 return
             elif op == 9:
                 c.sendall(ws_frame(10, payload))
-        ready, _, _ = select.select(pair, [], [], idle)
+        now = time.monotonic()
+        wait = max(0.2, idle - (now - last_act))
+        if ping:
+            wait = max(0.2, min(wait, ping - (now - last_ping)))
+        ready, _, _ = select.select(pair, [], [], wait)
+        now = time.monotonic()
+        if ping and now - last_ping >= ping:
+            c.sendall(ws_frame(9))      # ping WebSocket: mantiene viva la conexión detrás de CDN/NAT
+            last_ping = now
         if not ready:
-            return
+            if now - last_act >= idle:
+                return
+            continue
         for s in ready:
             data = s.recv(65536 if s is c else 16384)
             if not data:
@@ -126,6 +139,7 @@ def pipe_ws(c, t, idle, buf):
             if s is c:
                 buf += data
             else:
+                last_act = time.monotonic()
                 c.sendall(ws_frame(2, data))
 
 
@@ -174,7 +188,7 @@ def serve(c, a, mode):
         t = connect(a)
         c.settimeout(None)
         if mode == "ws":
-            pipe_ws(c, t, a.idle, rest)
+            pipe_ws(c, t, a.idle, rest, a.ping)
         else:
             if rest:
                 t.sendall(rest)
@@ -211,6 +225,7 @@ def main():
     ap.add_argument("--status", default="Switching Protocols")
     ap.add_argument("--status-file", default="")
     ap.add_argument("--idle", type=int, default=3600)
+    ap.add_argument("--ping", type=int, default=0, help="segundos entre pings WebSocket (0 = no enviar; solo modo ws)")
     a = ap.parse_args()
     a.thost, a.tport = hostport(a.target)
     if a.thost not in ("127.0.0.1", "localhost"):
