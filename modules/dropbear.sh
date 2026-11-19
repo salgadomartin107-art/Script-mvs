@@ -31,7 +31,6 @@ install_dropbear() {
     for p in $ports; do args+=" -p $p"; done
     main="${ports%% *}"; extra="${ports#"$main"}"; extra="${extra# }"
 
-    local ka=""; [[ -n "$(conf_get SSH_KEEPALIVE)" ]] && ka=" -K $(conf_get SSH_KEEPALIVE)"   # keepalive de OPTIMIZAR [38]
     # -R crea las claves de host si faltan, -E registra en el journal, -F foreground, -w sin login de root
     cat > "/etc/systemd/system/${DB_UNIT}.service" <<EOF
 [Unit]
@@ -39,7 +38,7 @@ Description=${APP_NAME} Dropbear
 After=network.target
 
 [Service]
-ExecStart=${bin}${ka} -R -E -F -b ${BANNER_FILE:-/etc/${APP_SLUG}-banner.txt} -w${args}
+ExecStart=${bin} -R -E -F -b ${BANNER_FILE:-/etc/${APP_SLUG}-banner.txt} -w${args}
 KillMode=process
 Restart=on-failure
 

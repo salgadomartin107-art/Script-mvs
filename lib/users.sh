@@ -53,7 +53,7 @@ user_create() { # nombre clave dias limite
     tg_send "Usuario creado: $name (vence $exp, límite $limit)"
 }
 
-# Crea un usuario SSH preguntando los datos y muestra su ficha (la usan [35] y los menús de los túneles)
+# Crea un usuario SSH preguntando los datos y muestra su ficha (la usan [P] y los menús de los túneles)
 user_create_prompt() {
     local name pass days limit
     read -rp "Usuario: " name; read -rp "Clave (se ve al escribir): " pass

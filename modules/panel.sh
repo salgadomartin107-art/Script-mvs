@@ -25,6 +25,36 @@ state_of() {
     esac
 }
 
+# Uso de CPU, RAM y disco del VPS (bajo el título del panel)
+res_bar() { # porcentaje [ancho]
+    local p="${1:-0}" w="${2:-14}" n i out="" col="$G"
+    [[ "$p" =~ ^[0-9]+$ ]] || p=0
+    (( p > 100 )) && p=100
+    (( p >= 70 )) && col="$Y"; (( p >= 90 )) && col="$R"
+    n=$(( p * w / 100 ))
+    for ((i = 0; i < w; i++)); do if (( i < n )); then out+="█"; else out+="░"; fi; done
+    printf '%s%s%s %3d%%' "$col" "$out" "$N" "$p"
+}
+res_size() { awk -v k="$1" 'BEGIN{ if (k >= 1048576) printf "%.1f GB", k/1048576; else printf "%d MB", k/1024 }'; }
+
+panel_resources() {
+    local u n s i w q sq st pt pi nt ni dtot didl cpu=0 cores load mt ma mp dt du dp
+    read -r _ u n s i w q sq st _ < /proc/stat 2>/dev/null || return 0
+    pt=$((u + n + s + i + w + q + sq + st)); pi=$((i + w))
+    sleep 0.25
+    read -r _ u n s i w q sq st _ < /proc/stat
+    nt=$((u + n + s + i + w + q + sq + st)); ni=$((i + w))
+    dtot=$((nt - pt)); didl=$((ni - pi))
+    (( dtot > 0 )) && cpu=$(( (100 * (dtot - didl)) / dtot ))
+    cores="$(nproc 2>/dev/null || echo 1)"; load="$(cut -d' ' -f1 /proc/loadavg)"
+    read -r mt ma < <(awk '/^MemTotal:/{t=$2} /^MemAvailable:/{a=$2} /^MemFree:/{f=$2} /^Buffers:/{b=$2} /^Cached:/{c=$2} END{if(a=="") a=f+b+c; print t, a}' /proc/meminfo)
+    mp=0; (( mt > 0 )) && mp=$(( (mt - ma) * 100 / mt ))
+    read -r dt du dp < <(df -Pk / 2>/dev/null | awk 'NR==2{gsub("%","",$5); print $2, $3, $5}')
+    printf ' %sCPU  %s %s %s núcleo%s · carga %s%s\n' "$R" "$N" "$(res_bar "$cpu")" "$cores" "$([[ "$cores" == 1 ]] || echo s)" "$load" "$N"
+    printf ' %sRAM  %s %s %s de %s · libre %s\n' "$R" "$N" "$(res_bar "$mp")" "$(res_size $((mt - ma)))" "$(res_size "$mt")" "$(res_size "$ma")"
+    printf ' %sDISCO%s %s %s de %s · libre %s\n' "$R" "$N" "$(res_bar "${dp:-0}")" "$(res_size "${du:-0}")" "$(res_size "${dt:-0}")" "$(res_size $(( ${dt:-0} - ${du:-0} )))"
+}
+
 # Datos de servicios sin pantalla propia
 udpgw_info()    { echo "UDPGW escuchando en 127.0.0.1:$(conf_get UDPGW_PORT)"; }
 dropbear_info() { echo "Dropbear, puertos: $(dropbear_ports)"; }
@@ -33,7 +63,7 @@ squid_info()    { echo "Proxy HTTP, puerto: $(conf_get SQUID_PORT)"; }
 openvpn_info()  {
     echo "Puerto: $(conf_get OVPN_PORT)/$(conf_get OVPN_PROTO)"
     echo "Archivo de cliente: $OVPN_FILE"
-    echo "Para repartirlo por un enlace, usá ARCHIVO ONLINE [19]."
+    echo "Para repartirlo por un enlace, usá ARCHIVO ONLINE [A]."
 }
 
 panel_ports() {
@@ -65,18 +95,21 @@ panel_screen() {
          "7|SQUID|$(state_of 7)" "8|OPENVPN|$(state_of 8)" "9|SLOWDNS|$(state_of 9)"
          "10|WIREGUARD|$(state_of 10)" "11|WS-PRO|$(state_of 11)" "12|TROJAN|$(state_of 12)"
          "13|HYSTERIA2|$(state_of 13)" "14|HCR|$(state_of 14)" "15|PSIPHON|na"
-         "16|UDP-ZIVPN|na" "17|UDPs Request|na" "18|UDP-CUSTOM|$(state_of 18)" "36|SOCKS5 + UDP|$(state_of 36)" "37|WSTUNNEL|$(state_of 37)" )
-    T1=( "19|ARCHIVO ONLINE|" "20|FIREWALL|" "21|FAIL2BAN PROTECCION|" "22|DETALLES DE SISTEMA|"
-         "23|TCP BBR|" "24|DNS SERVIDOR|" "25|LIBERAR RAM|" "26|SCANNER SUBDOMINIO|"
-         "27|PRUEBA DE VELOCIDAD|" "28|FIX ORACLE/AWS/AZR|" "29|HERRAMIENTAS BASICOS|"
-         "30|MONITOR|$(state_of 30)" "31|BOT TELEGRAM|$(state_of 31)" "32|NOTI-BOT|$(state_of 32)"
-         "33|CHECK-USER|$(state_of 33)" "34|TELEGRAM|$(state_of 34)" "35|USUARIOS SSH|" "38|OPTIMIZAR|$(state_of 38)"
+         "16|UDP-ZIVPN|na" "17|UDPs Request|na" "18|UDP-CUSTOM|$(state_of 18)" "19|SOCKS5 + UDP|$(state_of 36)" "20|WSTUNNEL|$(state_of 37)" )
+    # Las letras siguen el abecedario (A, B, C...). El "id" interno de cada herramienta no cambia: panel_menu traduce la tecla.
+    T1=( "A|ARCHIVO ONLINE|" "B|FIREWALL|" "C|FAIL2BAN PROTECCION|" "D|DETALLES DE SISTEMA|"
+         "E|TCP BBR|" "F|DNS SERVIDOR|" "G|LIBERAR RAM|" "H|SCANNER SUBDOMINIO|"
+         "I|PRUEBA DE VELOCIDAD|" "J|FIX ORACLE/AWS/AZR|" "K|HERRAMIENTAS BASICOS|"
+         "L|BOT TELEGRAM|$(state_of 31)" "M|NOTI-BOT|$(state_of 32)"
+         "N|CHECK-USER|$(state_of 33)" "O|TELEGRAM|$(state_of 34)" "P|USUARIOS SSH|" "Q|OPTIMIZAR|$(state_of 38)"
          "Z|ACTUALIZAR SCRIPT|" "X|DESINSTALAR|" "0|◄ SALIR|" )
 
     clear
     hline ═
     printf ' %s ❯❯❯❯❯❯ SCRIPT %s ❮❮❮❮❮❮ %s %s[Version %s]%s\n' "$BGY" "$APP_NAME" "$N" "$G" "${APP_VERSION:-1.0}" "$N"
     hline ═
+    panel_resources
+    hline ─
     panel_ports
     hline ─
     printf ' %s%s%s      %s%s%s\n' "$BGG" "      PROTOCOLOS      " "$N" "$BGR" "      HERRAMIENTAS      " "$N"
@@ -125,7 +158,15 @@ panel_menu() {
     while true; do
         panel_screen
         read -rp "${C}▸${N} Seleccioná una opción: " op || return   # sin terminal (EOF): salir, no girar
-        case "${op^^}" in
+        local k="${op^^}" id
+        case "$k" in      # tecla del panel -> id interno
+            0|[1-9]|1[0-8]|Z|X) id="$k" ;;
+            19) id=36 ;; 20) id=37 ;;
+            A) id=19 ;; B) id=20 ;; C) id=21 ;; D) id=22 ;; E) id=23 ;; F) id=24 ;; G) id=25 ;; H) id=26 ;;
+            I) id=27 ;; J) id=28 ;; K) id=29 ;; L) id=31 ;; M) id=32 ;; N) id=33 ;; O) id=34 ;; P) id=35 ;; Q) id=38 ;;
+            *) continue ;;
+        esac
+        case "$id" in
             1)  manage 1  BADVPN        install_badvpn      udpgw_info        remove_badvpn ;;
             2)  manage 2  SHADOWSOCKS   install_shadowsocks shadowsocks_info  remove_shadowsocks ;;
             3)  wsproxy_menu ;;
@@ -140,7 +181,7 @@ panel_menu() {
             12) trojan_menu ;;
             13) manage 13 HYSTERIA2     install_hysteria    hysteria_info     remove_hysteria ;;
             14) manage 14 HCR           install_hcr         hcr_info          remove_hcr ;;
-            15|16|17) not_available "${op}" ;;
+            15|16|17) not_available "${id}" ;;
             18) manage 18 UDP-CUSTOM    install_udpcustom   udpcustom_info    remove_udpcustom ;;
             36) hevsocks_menu ;;
             37) wstunnel_menu ;;
@@ -156,7 +197,6 @@ panel_menu() {
             27) title "Test de velocidad"; run_speedtest; pause ;;
             28) cloudfix_menu ;;
             29) basics_menu ;;
-            30) manage 30 MONITOR       install_monitor     monitor_info      remove_monitor ;;
             31) manage 31 "BOT TELEGRAM" install_bot        bot_info          remove_bot ;;
             32) manage 32 NOTI-BOT      install_notibot     notibot_info      remove_notibot ;;
             33) manage 33 CHECK-USER    install_checkuser   checkuser_info    remove_checkuser ;;

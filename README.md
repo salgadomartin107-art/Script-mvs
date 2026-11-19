@@ -11,7 +11,7 @@ Sistemas: Ubuntu 18.04–26.04 (x64 y ARM64) y Debian 8–12 (x64). Verifica el 
 repositorios de Debian viejo (archive.debian.org) y adapta las unidades de systemd a la versión instalada.
 Limitaciones conocidas en Debian 8: sin gestor de Xray (jq 1.4) y servicios con puertos < 1024 como root.
 
-## SOCKS5 + UDP [36] (HevSocks5Server)
+## SOCKS5 + UDP [19] (HevSocks5Server)
 
 Servidor SOCKS5 de código abierto (heiher/hev-socks5-server, MIT) que acompaña al "motor SOCKS" HevSocks5Tunnel de las apps.
 Soporta CONNECT, UDP ASSOCIATE y UDP-en-TCP, con varios usuarios y clave. Se compila en el VPS desde el tag fijado y se
@@ -20,7 +20,7 @@ SSL/TLS, SSH o PYTHON con "Destino" = su puerto, recomendado) o **público** (la
 El servidor sin la sección `auth` es un proxy abierto: el panel siempre la escribe y, al instalar, comprueba que rechace
 conexiones sin credenciales (si no las rechaza, se desinstala solo). Requiere IPv6 habilitado en el kernel.
 
-## WSTUNNEL [37]
+## WSTUNNEL [20]
 
 Túnel TCP/UDP sobre WebSocket/HTTP2 (erebe/wstunnel, BSD-3). Se baja el binario oficial de la release fijada (v11.1.0) y se
 verifica su SHA-256 contra `checksums.txt` de la release. El servidor se instala siempre con `--restrict-to` (solo reenvía
@@ -36,18 +36,27 @@ conecta directo con el destino fijo (SSH/Dropbear); el cliente wstunnel real pas
 prefijo secreto. La vía de payload no usa el prefijo: la protege el usuario/clave SSH.
 Un payload con varias peticiones HTTP seguidas (bloques `[split]`, por ejemplo `MKCOL … [split] GET … Upgrade: websocket`) recibe un 101 por cada una; al llegar SSH o el handshake de wstunnel se decide el destino. También sirve para perfiles de la app en modo SSH + payload apuntando a ese puerto.
 
-## OPTIMIZAR [38]
+## OPTIMIZAR [Q]
 
-Seis ajustes que se activan y desactivan de a uno (el menú muestra `[ON]`/`[OFF]`). Lo que se instala con apt se instala
+Tres ajustes que se activan y desactivan de a uno (el menú muestra `[ON]`/`[OFF]`). Lo que se instala con apt se instala
 sin arrancar solo, la configuración se valida antes de arrancar y si algo falla se deshace. Al desactivar solo se quita
-lo que instaló el panel.
+lo que instaló el panel. Si venís de la v1.15, al abrir este menú se quitan solos los ajustes que ya no existen (SSH keepalive,
+monitoreo e Unbound) y se devuelve el DNS del servidor a como estaba.
 
-1. **Ping WebSocket cada 25 s**: `--websocket-ping-frequency` en WSTUNNEL, `--ping` en WS-PRO (nuevo en `wsproxy.py`, no cuenta como actividad para el tiempo de inactividad) y `--heartbeat` en Websockify. Se reaplica solo cuando reinstalás esos servicios.
+1. **Ping WebSocket cada 25 s**: `--websocket-ping-frequency` en WSTUNNEL, `--ping` en WS-PRO (no cuenta como actividad para el tiempo de inactividad) y `--heartbeat` en Websockify. Se reaplica solo cuando reinstalás esos servicios.
 2. **Nginx sin buffering**: proxy WebSocket (`proxy_buffering off`, `proxy_request_buffering off`, timeouts de 1 h) en un puerto público hacia WS-PRO, WSTUNNEL, Websockify u otro puerto local. Sirve para clientes con `Upgrade`; un payload sin Upgrade no atraviesa Nginx.
-3. **SSH con keepalive**: OpenSSH (`ClientAliveInterval 30`, `ClientAliveCountMax 3`, `TCPKeepAlive yes`, en `sshd_config.d` o, en OpenSSH viejo, al principio de `sshd_config`, validado con `sshd -t`) y Dropbear (`-K 30`).
-4. **Monitoreo de CPU, RAM y tráfico**: vista en vivo (CPU, RAM, swap, carga, velocidad de red, procesos) y un historial opcional de 7 días (una muestra por minuto, `bin/statlog`) con resumen de 1 h / 24 h / 7 días.
-5. **Unbound DNS**: caché local en `127.0.0.1:53` (reenvío a 1.1.1.1/8.8.8.8 o recursivo desde las raíces) con prueba real de resolución. Opcionalmente pasa a ser el DNS del servidor (systemd-resolved o `resolv.conf`) y al desactivar se restaura. No queda abierto a Internet.
-6. **Websockify**: WebSocket (RFC 6455) a TCP hacia un único puerto local, con usuario propio y servicio endurecido.
+3. **Websockify**: WebSocket (RFC 6455) a TCP hacia un único puerto local, con usuario propio y servicio endurecido.
+
+## WS-PRO y el 101
+
+El puerto de WS-PRO acepta WebSocket real (con `Sec-WebSocket-Key`, framing y ping). Cualquier otra petición, como el payload de
+HTTP Custom / HTTP Injector, recibe igual `101 Switching Protocols` (o `200 Connection established` a un CONNECT) y sigue como flujo
+crudo hacia el destino fijo. Un payload con varias peticiones (`[split]`) recibe una respuesta por cada una.
+
+## Pantalla principal
+
+Arriba se ve el uso de CPU, RAM y disco del VPS (con lo que queda libre). Los protocolos van numerados (1 a 20) y las herramientas
+con letras en orden (A a Q), más `[Z]` actualizar y `[X]` desinstalar.
 
 ## Desinstalar (deja el VPS limpio)
 
@@ -95,7 +104,7 @@ Editá `config/app.conf` antes de instalar.
 
 ## Pantalla de protocolos
 
-`menu` abre directamente la pantalla de dos columnas (ON/OFF por servicio); `[35]` administra usuarios SSH y `[34]` configura Telegram. Cada número instala el
+`menu` abre directamente la pantalla de dos columnas (ON/OFF por servicio); `[P]` administra usuarios SSH y `[O]` configura Telegram. Cada número instala el
 servicio si está apagado, o abre ver datos / reinstalar / quitar si está activo.
 
 Incluye también: PYTHON-WS (HTTP 101 a SSH), WS-PRO (WebSocket real), WireGuard, Hysteria2,

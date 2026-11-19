@@ -298,7 +298,7 @@ wstunnel_info() {
     echo "Servidor: ${mode}://0.0.0.0:${port}  ->  solo a 127.0.0.1:${tport}   (wstunnel ${WST_VERSION})"
     echo "Prefijo secreto: ${secret}"
     [[ -n "$(conf_get WST_IPORT)" ]] && echo "Frente 101: ACTIVO (payload HTTP -> 101 Switching Protocols -> 127.0.0.1:${tport}; cliente wstunnel -> túnel con prefijo)"
-    echo "Usuario y clave: los de una cuenta SSH del panel (opción 5 de este menú, o [35] USUARIOS SSH)."
+    echo "Usuario y clave: los de una cuenta SSH del panel (opción 5 de este menú, o [P] USUARIOS SSH)."
     wst_client_examples "$secret" "$host" "$port" "$mode" "$tport"
 }
 

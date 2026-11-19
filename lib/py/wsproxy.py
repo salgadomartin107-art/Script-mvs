@@ -7,7 +7,9 @@ Modos:
         se reenvía tal cual.
   connect : responde "200 Connection established" (estilo proxy HTTP CONNECT) y reenvía el flujo crudo
             al mismo destino fijo, sin importar el host que pida el cliente.
-  ws  : WebSocket real (RFC 6455, con framing y enmascarado). Sirve detrás de un CDN.
+  ws  : WebSocket real (RFC 6455, con framing y enmascarado). Sirve detrás de un CDN. Una petición que no es un
+        WebSocket (payload sin Sec-WebSocket-Key) recibe igual "101 Switching Protocols" y sigue como raw.
+  En raw/connect/ws-payload, un payload con varias peticiones HTTP (bloques [split]) recibe una respuesta por cada una.
 """
 import argparse
 import base64
@@ -22,6 +24,7 @@ import time
 GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 MAX_HEAD = 16384
 MAX_FRAME = 1 << 20
+MAX_REQS = 8
 SLOTS = threading.BoundedSemaphore(500)
 
 
@@ -150,6 +153,47 @@ def connect(a):
     return t
 
 
+HTTP_REQ = re.compile(rb"[A-Za-z-]{2,20} \S+ HTTP/1\.[01]\r?\n")
+
+
+def plain_reply(c, a, head, use200):
+    if use200 or head[:8].upper() == b"CONNECT ":
+        c.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
+    else:
+        c.sendall(("HTTP/1.1 101 %s\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n"
+                   % current_status(a)).encode("latin-1"))
+
+
+def plain_session(c, a, head, rest, use200):
+    """Un payload puede traer varias peticiones HTTP seguidas (bloques con [split]): cada una recibe su 101/200 y,
+    cuando llega algo que no es HTTP (el SSH), se conecta al destino fijo y se reenvía el flujo crudo."""
+    nxt = rest
+    for _ in range(MAX_REQS):
+        plain_reply(c, a, head, use200)
+        nxt = nxt.lstrip(b"\r\n")          # los bloques [split] suelen empezar con líneas en blanco
+        if not nxt:
+            ready, _, _ = select.select([c], [], [], a.wait)
+            if ready:
+                nxt = c.recv(65536)
+                if not nxt:
+                    return None
+                nxt = nxt.lstrip(b"\r\n")
+        if nxt and nxt[:4] != b"SSH-" and HTTP_REQ.match(nxt):
+            while b"\r\n\r\n" not in nxt and len(nxt) < MAX_HEAD:
+                more = c.recv(4096)
+                if not more:
+                    return None
+                nxt += more
+            head, _, nxt = nxt.partition(b"\r\n\r\n")
+            continue
+        break
+    t = connect(a)
+    c.settimeout(None)
+    if nxt:
+        t.sendall(nxt)
+    return t
+
+
 def serve(c, a, mode):
     t = None
     try:
@@ -158,7 +202,7 @@ def serve(c, a, mode):
         first = c.recv(4096)
         if not first:
             return
-        if mode in ("raw", "connect") and first[:4] == b"SSH-":
+        if first[:4] == b"SSH-":
             t = connect(a)
             c.settimeout(None)
             t.sendall(first)
@@ -174,24 +218,18 @@ def serve(c, a, mode):
         hdr = parse_head(head)
         if mode == "ws":
             key = hdr.get("sec-websocket-key", "")
-            if "websocket" not in hdr.get("upgrade", "").lower() or not key:
-                c.sendall(b"HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\n\r\n")
+            if "websocket" in hdr.get("upgrade", "").lower() and key:
+                # WebSocket real (RFC 6455): handshake con Sec-WebSocket-Accept y framing
+                acc = base64.b64encode(hashlib.sha1(key.encode() + GUID).digest())
+                c.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n"
+                          b"Connection: Upgrade\r\nSec-WebSocket-Accept: " + acc + b"\r\n\r\n")
+                t = connect(a)
+                c.settimeout(None)
+                pipe_ws(c, t, a.idle, rest, a.ping)
                 return
-            acc = base64.b64encode(hashlib.sha1(key.encode() + GUID).digest())
-            c.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n"
-                      b"Connection: Upgrade\r\nSec-WebSocket-Accept: " + acc + b"\r\n\r\n")
-        elif mode == "connect":
-            c.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
-        else:
-            c.sendall(("HTTP/1.1 101 %s\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n"
-                       % current_status(a)).encode())
-        t = connect(a)
-        c.settimeout(None)
-        if mode == "ws":
-            pipe_ws(c, t, a.idle, rest, a.ping)
-        else:
-            if rest:
-                t.sendall(rest)
+            # Cualquier otra petición (payload de HTTP Custom / HTTP Injector): 101 y flujo crudo, como en el modo raw
+        t = plain_session(c, a, head, rest, mode == "connect")
+        if t is not None:
             pipe_raw(c, t, a.idle)
     except Exception:
         pass
@@ -225,6 +263,7 @@ def main():
     ap.add_argument("--status", default="Switching Protocols")
     ap.add_argument("--status-file", default="")
     ap.add_argument("--idle", type=int, default=3600)
+    ap.add_argument("--wait", type=float, default=2.0, help="segundos de espera tras un 101/200 por más bloques del payload")
     ap.add_argument("--ping", type=int, default=0, help="segundos entre pings WebSocket (0 = no enviar; solo modo ws)")
     a = ap.parse_args()
     a.thost, a.tport = hostport(a.target)

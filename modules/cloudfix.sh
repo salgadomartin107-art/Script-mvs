@@ -67,7 +67,7 @@ cloud_root_login() {
     local p1 p2 bak
     echo "Esto habilita SSH como root con contraseña en TODO el servidor."
     warn "Es práctico para tu VPS de pruebas, pero queda expuesto a ataques de fuerza bruta."
-    warn "Usá una contraseña larga (12+ caracteres) y activá FAIL2BAN [21]."
+    warn "Usá una contraseña larga (12+ caracteres) y activá FAIL2BAN [C]."
     confirm "¿Continuar?" || return 0
     read -rsp "Contraseña nueva de root: " p1; echo
     read -rsp "Repetila: " p2; echo
