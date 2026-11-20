@@ -11,6 +11,13 @@ for m in "$ROOT"/modules/*.sh; do source "$m"; done
 # Si se corta la conexión (el celular se duerme, se cae la red), el terminal desaparece y read falla al instante;
 # los menús son bucles "while true", así que girarían al 100 % de CPU para siempre. Con esto el panel termina solo.
 trap 'exit 0' HUP TERM
+# Ctrl+C: salir y dejar el prompt del shell DEBAJO del recuadro (si el cursor estaba dentro de la caja de abajo, bajar dos líneas).
+_ctrl_c() {
+    printf '%s' "$N"
+    if (( ${PANEL_PROMPT:-0} && ${PANEL_BOXED:-0} )); then printf '\n\n'; else printf '\n'; fi
+    exit 130
+}
+trap _ctrl_c INT
 read() {
     local __rd_arg __rd_ask=0 __rd_rc
     for __rd_arg in "$@"; do [[ "$__rd_arg" == -[a-zA-Z]*p* ]] && __rd_ask=1; done

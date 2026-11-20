@@ -244,8 +244,10 @@ panel_menu() {
     local op
     while true; do
         panel_screen
-        if (( PANEL_BOXED )); then read -r op || return; printf '\n'      # el cursor ya está dentro de la caja
-        else read -rp "${C}▸${N} Seleccioná una opción: " op || return; fi   # sin terminal (EOF): salir, no girar
+        PANEL_PROMPT=1
+        if (( PANEL_BOXED )); then read -r op || { PANEL_PROMPT=0; return; }; printf '\n'      # el cursor ya está dentro de la caja
+        else read -rp "${C}▸${N} Seleccioná una opción: " op || { PANEL_PROMPT=0; return; }; fi   # sin terminal (EOF): salir, no girar
+        PANEL_PROMPT=0
         local k="${op^^}" id
         case "$k" in      # tecla del panel -> id interno
             0|[1-9]|1[0-8]|Z|X) id="$k" ;;
