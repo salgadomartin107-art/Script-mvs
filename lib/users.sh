@@ -113,14 +113,28 @@ user_set_limit() { # nombre limite
     ok "Límite de $name: $limit"
 }
 
-user_online() { local n; n="$(pgrep -u "$1" -c 'sshd|dropbear' 2>/dev/null)"; echo "${n:-0}"; }
 
-# Conexiones abiertas por usuario (sshd + dropbear) en una sola pasada: llena el array ONLINE_OF
+# Conexiones abiertas por usuario, en una sola pasada. Llena ONLINE_OF[usuario]=n y ONLINE_PIDS[usuario]="pid pid".
+#  - OpenSSH: el proceso de la sesión corre como el usuario y se llama "sshd" (o "sshd-session" desde OpenSSH 9.8 / Ubuntu 25.04+).
+#  - Dropbear: cuando solo hace de túnel NO cambia de usuario, así que se lee el journal ("auth succeeded for 'usuario'")
+#    y se cuentan los procesos dropbear de esas sesiones que siguen vivos.
 users_online_load() {
-    local u c
-    declare -gA ONLINE_OF=()
-    while read -r u c; do [[ -n "$u" ]] && ONLINE_OF["$u"]="$c"; done < <(
-        ps -eo user=,comm= 2>/dev/null | awk '$2=="sshd" || $2=="dropbear" {n[$1]++} END {for (k in n) print k, n[k]}')
+    local pid u c
+    local -A alive=()
+    declare -gA ONLINE_OF=() ONLINE_PIDS=()
+    while read -r pid u c; do
+        [[ "$c" == dropbear ]] && alive[$pid]=1
+        [[ "$c" == sshd || "$c" == sshd-session ]] && [[ "$u" != root ]] || continue
+        ONLINE_OF["$u"]=$(( ${ONLINE_OF["$u"]:-0} + 1 )); ONLINE_PIDS["$u"]+="$pid "
+    done < <(ps -eo pid=,user:32=,comm= 2>/dev/null)
+    if (( ${#alive[@]} > 0 )); then
+        while read -r pid u; do
+            [[ -n "${alive[$pid]:-}" ]] || continue
+            ONLINE_OF["$u"]=$(( ${ONLINE_OF["$u"]:-0} + 1 )); ONLINE_PIDS["$u"]+="$pid "
+            unset 'alive[$pid]'
+        done < <(journalctl -u "${APP_SLUG}-dropbear" -o short --no-pager -q --since "30 days ago" 2>/dev/null \
+                 | sed -nE "s/.*dropbear\[([0-9]+)\]: .*auth succeeded for '([^']+)'.*/\1 \2/p" | tac)
+    fi
     return 0
 }
 
@@ -174,6 +188,8 @@ user_list() { # [solo_conectados]
     echo " ONLINE = conexiones abiertas ahora."
 }
 
+user_online() { users_online_load; echo "${ONLINE_OF[$1]:-0}"; }
+
 # Elimina usuarios vencidos
 users_expire_sweep() {
     local today u e; today="$(date +%F)"
@@ -184,12 +200,15 @@ users_expire_sweep() {
 
 # Corta conexiones que superen el límite de cada usuario
 users_enforce_limits() {
-    local u l n
+    local u l n pids p i
+    users_online_load
     while IFS='|' read -r u _ l _; do
         [[ -n "$u" && "$l" =~ ^[0-9]+$ && "$l" -gt 0 ]] || continue
-        n="$(user_online "$u")"
+        n="${ONLINE_OF[$u]:-0}"
         if (( n > l )); then
-            for ((i = 0; i < n - l; i++)); do pkill -KILL -n -u "$u" 'sshd|dropbear' 2>/dev/null || true; done
+            # corta las sesiones más nuevas (pid mayor) hasta quedar en el límite
+            pids="$(printf '%s\n' ${ONLINE_PIDS[$u]} | sort -n | tail -n $((n - l)))"
+            for p in $pids; do kill -KILL "$p" 2>/dev/null || true; done
             tg_send "Límite excedido: $u tenía $n conexiones (máx $l)"
         fi
     done < <(cat "$USERS_DB")
