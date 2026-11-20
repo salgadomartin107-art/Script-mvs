@@ -58,6 +58,12 @@ crudo hacia el destino fijo. Un payload con varias peticiones (`[split]`) recibe
 Arriba se ve el uso de CPU, RAM y disco del VPS (con lo que queda libre). Los protocolos van numerados (1 a 20) y las herramientas
 con letras en orden (A a Q), más `[Z]` actualizar y `[X]` desinstalar.
 
+Desde la v1.17 la pantalla va en cajas redondeadas de colores: cabecera con la versión, barras de CPU/RAM/disco
+(se ponen rojas al llegar al 90 %), dos cajas moradas con los puertos activos, banners azul (PROTOCOLOS) y rojo
+(HERRAMIENTAS), listas con `[ON]` / `[OFF]` / `[N/D]` y el cursor dentro de una caja al pie. Necesita una terminal
+de 57 columnas o más con 256 colores (JuiceSSH, Termux, etc.); si es más angosta o no es una terminal real,
+muestra automáticamente el diseño clásico.
+
 ## Desinstalar (deja el VPS limpio)
 
     menu  →  [X] DESINSTALAR          o bien:   bash mvs-install.sh --uninstall   /   menu --uninstall

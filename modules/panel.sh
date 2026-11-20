@@ -25,7 +25,27 @@ state_of() {
     esac
 }
 
-# Uso de CPU, RAM y disco del VPS (bajo el título del panel)
+# Uso de CPU, RAM y disco del VPS (se mide una vez por pantalla)
+res_collect() {
+    local u n s i w q sq st pt pi nt ni dtot didl
+    R_CPU=0
+    read -r _ u n s i w q sq st _ < /proc/stat 2>/dev/null || return 0
+    pt=$((u + n + s + i + w + q + sq + st)); pi=$((i + w))
+    sleep 0.25
+    read -r _ u n s i w q sq st _ < /proc/stat
+    nt=$((u + n + s + i + w + q + sq + st)); ni=$((i + w))
+    dtot=$((nt - pt)); didl=$((ni - pi))
+    (( dtot > 0 )) && R_CPU=$(( (100 * (dtot - didl)) / dtot ))
+    R_CORES="$(nproc 2>/dev/null || echo 1)"; R_LOAD="$(cut -d' ' -f1 /proc/loadavg)"
+    read -r R_MT R_MA < <(awk '/^MemTotal:/{t=$2} /^MemAvailable:/{a=$2} /^MemFree:/{f=$2} /^Buffers:/{b=$2} /^Cached:/{c=$2} END{if(a=="") a=f+b+c; print t, a}' /proc/meminfo)
+    R_MP=0; (( R_MT > 0 )) && R_MP=$(( (R_MT - R_MA) * 100 / R_MT ))
+    read -r R_DT R_DU R_DP < <(df -Pk / 2>/dev/null | awk 'NR==2{gsub("%","",$5); print $2, $3, $5}')
+    : "${R_DT:=0}" "${R_DU:=0}" "${R_DP:=0}"
+}
+res_size() { awk -v k="$1" 'BEGIN{ if (k >= 1048576) printf "%.1f GB", k/1048576; else printf "%d MB", k/1024 }'; }
+res_size_c() { awk -v k="$1" 'BEGIN{ if (k >= 10485760) printf "%dG", k/1048576; else if (k >= 1048576) printf "%.1fG", k/1048576; else printf "%dM", k/1024 }'; }  # compacto: 3.7G
+
+# Barra de uso para la pantalla clásica
 res_bar() { # porcentaje [ancho]
     local p="${1:-0}" w="${2:-14}" n i out="" col="$G"
     [[ "$p" =~ ^[0-9]+$ ]] || p=0
@@ -35,24 +55,21 @@ res_bar() { # porcentaje [ancho]
     for ((i = 0; i < w; i++)); do if (( i < n )); then out+="█"; else out+="░"; fi; done
     printf '%s%s%s %3d%%' "$col" "$out" "$N" "$p"
 }
-res_size() { awk -v k="$1" 'BEGIN{ if (k >= 1048576) printf "%.1f GB", k/1048576; else printf "%d MB", k/1024 }'; }
 
 panel_resources() {
-    local u n s i w q sq st pt pi nt ni dtot didl cpu=0 cores load mt ma mp dt du dp
-    read -r _ u n s i w q sq st _ < /proc/stat 2>/dev/null || return 0
-    pt=$((u + n + s + i + w + q + sq + st)); pi=$((i + w))
-    sleep 0.25
-    read -r _ u n s i w q sq st _ < /proc/stat
-    nt=$((u + n + s + i + w + q + sq + st)); ni=$((i + w))
-    dtot=$((nt - pt)); didl=$((ni - pi))
-    (( dtot > 0 )) && cpu=$(( (100 * (dtot - didl)) / dtot ))
-    cores="$(nproc 2>/dev/null || echo 1)"; load="$(cut -d' ' -f1 /proc/loadavg)"
-    read -r mt ma < <(awk '/^MemTotal:/{t=$2} /^MemAvailable:/{a=$2} /^MemFree:/{f=$2} /^Buffers:/{b=$2} /^Cached:/{c=$2} END{if(a=="") a=f+b+c; print t, a}' /proc/meminfo)
-    mp=0; (( mt > 0 )) && mp=$(( (mt - ma) * 100 / mt ))
-    read -r dt du dp < <(df -Pk / 2>/dev/null | awk 'NR==2{gsub("%","",$5); print $2, $3, $5}')
-    printf ' %sCPU  %s %s %s núcleo%s · carga %s%s\n' "$R" "$N" "$(res_bar "$cpu")" "$cores" "$([[ "$cores" == 1 ]] || echo s)" "$load" "$N"
-    printf ' %sRAM  %s %s %s de %s · libre %s\n' "$R" "$N" "$(res_bar "$mp")" "$(res_size $((mt - ma)))" "$(res_size "$mt")" "$(res_size "$ma")"
-    printf ' %sDISCO%s %s %s de %s · libre %s\n' "$R" "$N" "$(res_bar "${dp:-0}")" "$(res_size "${du:-0}")" "$(res_size "${dt:-0}")" "$(res_size $(( ${dt:-0} - ${du:-0} )))"
+    res_collect
+    printf ' %sCPU  %s %s %s núcleo%s · carga %s%s\n' "$R" "$N" "$(res_bar "$R_CPU")" "$R_CORES" "$([[ "$R_CORES" == 1 ]] || echo s)" "$R_LOAD" "$N"
+    printf ' %sRAM  %s %s %s de %s · libre %s\n' "$R" "$N" "$(res_bar "$R_MP")" "$(res_size $((R_MT - R_MA)))" "$(res_size "$R_MT")" "$(res_size "$R_MA")"
+    printf ' %sDISCO%s %s %s de %s · libre %s\n' "$R" "$N" "$(res_bar "$R_DP")" "$(res_size "$R_DU")" "$(res_size "$R_DT")" "$(res_size $((R_DT - R_DU)))"
+}
+
+# Barra de la pantalla en cajas: 13 celdas, roja si el uso llega al 90 %
+res_bar_box() { # porcentaje color
+    local p="$1" col="$2" n i f="" e=""
+    (( p > 100 )) && p=100; (( p >= 90 )) && col="$K_RED"
+    n=$(( p * 13 / 100 ))
+    for ((i = 0; i < 13; i++)); do if (( i < n )); then f+="█"; else e+="░"; fi; done
+    printf '%s%s%s%s%s %s%3d%%%s' "$col" "$f" "$K_DIM" "$e" "$N" "$col" "$p" "$N"
 }
 
 # Datos de servicios sin pantalla propia
@@ -66,8 +83,9 @@ openvpn_info()  {
     echo "Para repartirlo por un enlace, usá ARCHIVO ONLINE [A]."
 }
 
-panel_ports() {
-    local -a items=() spec=(
+# Lista "ETIQUETA|puertos" de los servicios que tienen puerto configurado
+port_specs() {
+    local -a spec=(
         "DROPBEAR|$(dropbear_ports)"        "BADVPN|$(conf_get UDPGW_PORT)"
         "SSH|$(sshd_ports | tr '\n' ' ' | xargs)" "UDP|$(conf_get HY_PORT)"
         "ARCHIVOS|$(conf_get FILESERVER_PORT)" "PYTHON|$(wsproxy_ports)"
@@ -75,35 +93,47 @@ panel_ports() {
         "SQUID|$(conf_get SQUID_PORT)"      "OPENVPN|$(conf_get OVPN_PORT)"
         "V2RAY|$(conf_get XRAY_PORT)"       "WG|$(conf_get WG_PORT)"
         "TROJAN|$(conf_get TROJAN_PORT)"    "SS|$(conf_get SS_PORT)"
-        "CHECK|$(conf_get CHECKUSER_PORT)" "HCR|$(conf_get HCR_PORT)" "UDPC|$(conf_get UDPC_PORT)" "SOCKS5|$(conf_get HEVS_PORT)" "WSTUN|$(conf_get WST_PORT)"
-        "NGINX|$(conf_get NGX_PORT)" "WSFY|$(conf_get WSFY_PORT)"
+        "CHECK|$(conf_get CHECKUSER_PORT)"  "HCR|$(conf_get HCR_PORT)" "UDPC|$(conf_get UDPC_PORT)"
+        "SOCKS5|$(conf_get HEVS_PORT)"      "WSTUN|$(conf_get WST_PORT)"
+        "NGINX|$(conf_get NGX_PORT)"        "WSFY|$(conf_get WSFY_PORT)"
     )
+    local e
+    for e in "${spec[@]}"; do [[ -n "${e#*|}" ]] && printf '%s\n' "$e"; done
+    return 0
+}
+
+panel_ports() { # pantalla clásica
+    local -a items=()
     local e i
-    for e in "${spec[@]}"; do
-        [[ -n "${e#*|}" ]] && items+=("$(kv "${e%%|*}" "${e#*|}")")
-    done
+    while IFS= read -r e; do items+=("$(kv "${e%%|*}" "${e#*|}")"); done < <(port_specs)
     for ((i = 0; i < ${#items[@]}; i += 2)); do
         printf ' %s  %s\n' "${items[$i]}" "${items[$((i + 1))]:-}"
     done
 }
 
-panel_screen() {
-    local -a P1 T1
-    # Izquierda: PROTOCOLOS (solo números). Derecha: HERRAMIENTAS (lo demás; Z y X con letra roja).
+# Listas de PROTOCOLOS (solo números) y HERRAMIENTAS (letras A, B, C…; Z y X en rojo).
+# El "id" interno de cada herramienta no cambia: panel_menu traduce la tecla.
+panel_lists() {
     P1=( "1|BADVPN|$(state_of 1)" "2|SOCKS LIBEV|$(state_of 2)" "3|SOCKS PYTHON|$(state_of 3)"
          "4|V2RAY/XRAY|$(state_of 4)" "5|SSL/TLS|$(state_of 5)" "6|DROPBEAR|$(state_of 6)"
          "7|SQUID|$(state_of 7)" "8|OPENVPN|$(state_of 8)" "9|SLOWDNS|$(state_of 9)"
          "10|WIREGUARD|$(state_of 10)" "11|WS-PRO|$(state_of 11)" "12|TROJAN|$(state_of 12)"
          "13|HYSTERIA2|$(state_of 13)" "14|HCR|$(state_of 14)" "15|PSIPHON|na"
          "16|UDP-ZIVPN|na" "17|UDPs Request|na" "18|UDP-CUSTOM|$(state_of 18)" "19|SOCKS5 + UDP|$(state_of 36)" "20|WSTUNNEL|$(state_of 37)" )
-    # Las letras siguen el abecedario (A, B, C...). El "id" interno de cada herramienta no cambia: panel_menu traduce la tecla.
-    T1=( "A|ARCHIVO ONLINE|" "B|FIREWALL|" "C|FAIL2BAN PROTECCION|" "D|DETALLES DE SISTEMA|"
+    T1=( "A|ARCHIVO ONLINE|" "B|FIREWALL|" "C|FAIL2BAN (PROTEC.)|" "D|DETALLES SISTEMA|"
          "E|TCP BBR|" "F|DNS SERVIDOR|" "G|LIBERAR RAM|" "H|SCANNER SUBDOMINIO|"
-         "I|PRUEBA DE VELOCIDAD|" "J|FIX ORACLE/AWS/AZR|" "K|HERRAMIENTAS BASICOS|"
+         "I|TEST DE VELOCIDAD|" "J|FIX ORACLE/AWS/AZR|" "K|HERRAM. BASICAS|"
          "L|BOT TELEGRAM|$(state_of 31)" "M|NOTI-BOT|$(state_of 32)"
          "N|CHECK-USER|$(state_of 33)" "O|TELEGRAM|$(state_of 34)" "P|USUARIOS SSH|" "Q|OPTIMIZAR|$(state_of 38)"
          "Z|ACTUALIZAR SCRIPT|" "X|DESINSTALAR|" "0|◄ SALIR|" )
+}
 
+# La pantalla en cajas necesita una terminal real de al menos 57 columnas
+panel_boxed_ok() { [[ -t 1 ]] && (( $(tput cols 2>/dev/null || echo 0) >= 57 )); }
+
+panel_screen_classic() {
+    local -a P1 T1
+    panel_lists
     clear
     hline ═
     printf ' %s ❯❯❯❯❯❯ SCRIPT %s ❮❮❮❮❮❮ %s %s[Version %s]%s\n' "$BGY" "$APP_NAME" "$N" "$G" "${APP_VERSION:-1.0}" "$N"
@@ -116,6 +146,63 @@ panel_screen() {
     hline ─
     print_rows P1 T1
     hline ─
+}
+
+panel_screen_boxed() {
+    local -a P1 T1 ports=() L=() Rr=()
+    local e i n half cores_s title ver c
+    panel_lists
+    res_collect
+    clear
+    # --- cabecera ---
+    ver="[Version ${APP_VERSION:-1.0}]"
+    n=$(( 5 + 1 + 6 + 1 + ${#APP_NAME} + 1 + 5 + 2 + ${#ver} ))
+    c=$(( (57 - n) / 2 + 1 ))
+    box_edge1 "$K_BLUE" ╭ ╮
+    box_row1  "$K_BLUE" "$(printf '\e[%dG%s❯❯❯❯❯ SCRIPT %s%s %s❮❮❮❮❮  %s%s%s' "$c" "$K_YEL" "$K_RED" "$APP_NAME" "$K_YEL" "$K_CYA" "$ver" "$N")"
+    box_edge1 "$K_BLUE" ╰ ╯
+    # --- recursos ---
+    [[ "$R_CORES" == 1 ]] && cores_s="núcleo" || cores_s="núcleos"
+    box_edge2 ╭ ╮ "$K_BLUE" "$K_BLUE"
+    box_row2 "$K_BLUE" "$K_BLUE" \
+        "$(printf '\e[3G%sCPU\e[9G%s' "$K_YEL" "$(res_bar_box "$R_CPU" "$K_YEL")")" \
+        "$(printf '\e[32G%s%s %s · carga %s%s%s' "$WH" "$R_CORES" "$cores_s" "$K_YEL" "$R_LOAD" "$N")"
+    box_row2 "$K_BLUE" "$K_BLUE" \
+        "$(printf '\e[3G%sRAM\e[9G%s' "$K_GRN" "$(res_bar_box "$R_MP" "$K_GRN")")" \
+        "$(printf '\e[32G%s%.26s%s' "$WH" "$(res_size_c $((R_MT - R_MA)))/$(res_size_c "$R_MT") · libre $(res_size_c "$R_MA")" "$N")"
+    box_row2 "$K_BLUE" "$K_BLUE" \
+        "$(printf '\e[3G%sDISCO\e[9G%s' "$K_CYA" "$(res_bar_box "$R_DP" "$K_CYA")")" \
+        "$(printf '\e[32G%s%.26s%s' "$WH" "$(res_size_c "$R_DU")/$(res_size_c "$R_DT") · libre $(res_size_c $((R_DT - R_DU)))" "$N")"
+    box_edge2 ╰ ╯ "$K_BLUE" "$K_BLUE"
+    # --- puertos (dos cajas moradas, se reparten por mitades) ---
+    while IFS= read -r e; do ports+=("$e"); done < <(port_specs)
+    n=${#ports[@]}; half=$(( (n + 1) / 2 ))
+    if (( n > 0 )); then
+        box_edge2 ╭ ╮ "$K_PURP" "$K_PURP"
+        for ((i = 0; i < half; i++)); do
+            L[i]=""; Rr[i]=""
+            L[i]="$(port_cell 0 "$i" "${ports[$i]%%|*}" "${ports[$i]#*|}")"
+            (( i + half < n )) && Rr[i]="$(port_cell 29 "$i" "${ports[$((i + half))]%%|*}" "${ports[$((i + half))]#*|}")"
+            box_row2 "$K_PURP" "$K_PURP" "${L[$i]}" "${Rr[$i]}"
+        done
+        box_edge2 ╰ ╯ "$K_PURP" "$K_PURP"
+    fi
+    # --- banners y listas ---
+    banner2 "PROTOCOLOS" "HERRAMIENTAS"
+    box_edge2 ╭ ╮ "$K_BLUE" "$K_BLUE"
+    n=${#P1[@]}; (( ${#T1[@]} > n )) && n=${#T1[@]}
+    for ((i = 0; i < n; i++)); do
+        box_row2 "$K_BLUE" "$K_BLUE" "$(item_from 0 "${P1[$i]:-}")" "$(item_from 29 "${T1[$i]:-}")"
+    done
+    box_edge2 ╰ ╯ "$K_BLUE" "$K_BLUE"
+    # --- prompt en caja: el cursor queda dentro ---
+    box_edge1 "$K_BLUE" ╭ ╮
+    box_row1  "$K_BLUE" "$(printf '\e[3G%s▶\e[5G%sSeleccioná una opción:%s' "$K_CYA" "$K_YEL" "$N")"
+    printf '\e[1G%s╰%s╯%s\e[1A\e[29G' "$K_BLUE" "$RULE55" "$N"
+}
+
+panel_screen() {
+    if panel_boxed_ok; then PANEL_BOXED=1; panel_screen_boxed; else PANEL_BOXED=0; panel_screen_classic; fi
 }
 
 not_available() {
@@ -157,7 +244,8 @@ panel_menu() {
     local op
     while true; do
         panel_screen
-        read -rp "${C}▸${N} Seleccioná una opción: " op || return   # sin terminal (EOF): salir, no girar
+        if (( PANEL_BOXED )); then read -r op || return; printf '\n'      # el cursor ya está dentro de la caja
+        else read -rp "${C}▸${N} Seleccioná una opción: " op || return; fi   # sin terminal (EOF): salir, no girar
         local k="${op^^}" id
         case "$k" in      # tecla del panel -> id interno
             0|[1-9]|1[0-8]|Z|X) id="$k" ;;
