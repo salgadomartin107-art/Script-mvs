@@ -8,7 +8,7 @@ declare -A UNIT=(
     [7]="squid"                    [8]="openvpn-server@${APP_SLUG}" [9]="${APP_SLUG}-slowdns"
     [10]="wg-quick@${APP_SLUG}"    [11]="${APP_SLUG}-wspro"     [13]="${APP_SLUG}-hysteria"
     [14]="${APP_SLUG}-hcr"         [18]="${APP_SLUG}-udpcustom"  [21]="fail2ban"
-    [36]="${APP_SLUG}-hevsocks5"  [37]="${APP_SLUG}-wstunnel"
+    [36]="${APP_SLUG}-hevsocks5"  [37]="${APP_SLUG}-wstunnel"  [39]="${APP_SLUG}-mux"
     [31]="${APP_SLUG}-bot"         [33]="${APP_SLUG}-checkuser"
 )
 
@@ -95,7 +95,7 @@ port_specs() {
         "TROJAN|$(conf_get TROJAN_PORT)"    "SS|$(conf_get SS_PORT)"
         "CHECK|$(conf_get CHECKUSER_PORT)"  "HCR|$(conf_get HCR_PORT)" "UDPC|$(conf_get UDPC_PORT)"
         "SOCKS5|$(conf_get HEVS_PORT)"      "WSTUN|$(conf_get WST_PORT)"
-        "NGINX|$(conf_get NGX_PORT)"        "WSFY|$(conf_get WSFY_PORT)"
+        "NGINX|$(conf_get NGX_PORT)"        "WSFY|$(conf_get WSFY_PORT)"        "MUX|$(conf_get MUX_PORT)"
     )
     local e
     for e in "${spec[@]}"; do [[ -n "${e#*|}" ]] && printf '%s\n' "$e"; done
@@ -119,7 +119,8 @@ panel_lists() {
          "7|SQUID|$(state_of 7)" "8|OPENVPN|$(state_of 8)" "9|SLOWDNS|$(state_of 9)"
          "10|WIREGUARD|$(state_of 10)" "11|WS-PRO|$(state_of 11)" "12|TROJAN|$(state_of 12)"
          "13|HYSTERIA2|$(state_of 13)" "14|HCR|$(state_of 14)" "15|PSIPHON|na"
-         "16|UDP-ZIVPN|na" "17|UDPs Request|na" "18|UDP-CUSTOM|$(state_of 18)" "19|SOCKS5 + UDP|$(state_of 36)" "20|WSTUNNEL|$(state_of 37)" )
+         "16|UDP-ZIVPN|na" "17|UDPs Request|na" "18|UDP-CUSTOM|$(state_of 18)" "19|SOCKS5 + UDP|$(state_of 36)" "20|WSTUNNEL|$(state_of 37)"
+         "21|MULTIPLEXOR|$(state_of 39)" )
     T1=( "A|ARCHIVO ONLINE|" "B|FIREWALL|" "C|FAIL2BAN (PROTEC.)|" "D|DETALLES SISTEMA|"
          "E|TCP BBR|" "F|DNS SERVIDOR|" "G|LIBERAR RAM|" "H|SCANNER SUBDOMINIO|"
          "I|TEST DE VELOCIDAD|" "J|FIX ORACLE/AWS/AZR|" "K|HERRAM. BASICAS|"
@@ -251,7 +252,7 @@ panel_menu() {
         local k="${op^^}" id
         case "$k" in      # tecla del panel -> id interno
             0|[1-9]|1[0-8]|Z|X) id="$k" ;;
-            19) id=36 ;; 20) id=37 ;;
+            19) id=36 ;; 20) id=37 ;; 21) id=39 ;;
             A) id=19 ;; B) id=20 ;; C) id=21 ;; D) id=22 ;; E) id=23 ;; F) id=24 ;; G) id=25 ;; H) id=26 ;;
             I) id=27 ;; J) id=28 ;; K) id=29 ;; L) id=31 ;; M) id=32 ;; N) id=33 ;; O) id=34 ;; P) id=35 ;; Q) id=38 ;;
             *) continue ;;
@@ -275,6 +276,7 @@ panel_menu() {
             18) manage 18 UDP-CUSTOM    install_udpcustom   udpcustom_info    remove_udpcustom ;;
             36) hevsocks_menu ;;
             37) wstunnel_menu ;;
+            39) manage 39 MULTIPLEXOR   install_mux         mux_info          remove_mux ;;
             38) optimize_menu ;;
             19) fileserver_menu ;;
             20) firewall_menu ;;

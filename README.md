@@ -57,6 +57,13 @@ Desde la v1.18 el menú de WS-PRO [11] permite agregar puertos sin borrar los ac
 puerto** (101 Switching Protocols o 200 Connection established) para los clientes con payload. Un cliente WebSocket real recibe siempre el 101
 de WebSocket.
 
+## MULTIPLEXOR [21] (un puerto para todo, tipo sslh)
+
+Deja un solo puerto público, normalmente el 443, y reparte cada conexión según lo que llega: TLS con SNI va a SSL/TLS [5],
+`SSH-` va a SSH/Dropbear y un payload HTTP (WebSocket, 101, CONNECT) va a WS-PRO o SOCKS PYTHON. Un cliente que no manda nada en
+2 s se trata como SSH, porque espera el banner del servidor. Si el 443 lo usa SSL/TLS [5], el asistente lo mueve solo a un puerto
+interno (solo local) y el público sigue siendo el 443; al quitar el multiplexor lo devuelve. Los destinos son siempre 127.0.0.1.
+
 ## Pantalla principal
 
 Arriba se ve el uso de CPU, RAM y disco del VPS (con lo que queda libre). Los protocolos van numerados (1 a 20) y las herramientas

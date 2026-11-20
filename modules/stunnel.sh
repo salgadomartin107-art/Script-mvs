@@ -38,7 +38,8 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
     svc_enable_restart "${APP_SLUG}-stunnel"
-    conf_set SSL_PORT "$port"
+    conf_set SSL_PORT "$port"; conf_set SSL_INTERNAL ""
+    svc_is_active "${APP_SLUG}-mux" && warn "El multiplexor [21] sigue apuntando al SSL anterior: reconfiguralo."
     ok "SSL activo en el puerto $port -> 127.0.0.1:$tport (certificado autofirmado)."
 }
 
