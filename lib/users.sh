@@ -156,7 +156,7 @@ users_summary() {
         tot=$((tot + 1)); n="${ONLINE_OF[$u]:-0}"
         if (( n > 0 )); then on=$((on + 1)); conn=$((conn + n)); fi
     done < "$USERS_DB"
-    printf ' %sUsuarios:%s %s   %sEn línea:%s %s   %sConexiones:%s %s\n' "$Y" "$N" "$tot" "$G" "$N" "$on" "$C" "$N" "$conn"
+    printf ' %sUsuarios:%s %s   %sConexiones:%s %s\n' "$Y" "$N" "$tot" "$C" "$N" "$conn"
 }
 
 # Lista de usuarios: vence, días que quedan, cupo (para cuántas conexiones se creó la cuenta) y conectados ahora.
@@ -181,7 +181,7 @@ user_list() { # [solo_conectados]
     done < "$USERS_DB"
     (( shown == 0 )) && echo " Nadie conectado en este momento."
     echo
-    printf ' %sUsuarios:%s %s   %sEn línea:%s %s   %sConexiones:%s %s' "$Y" "$N" "$tot" "$G" "$N" "$on" "$C" "$N" "$conn"
+    printf ' %sUsuarios:%s %s   %sConexiones:%s %s' "$Y" "$N" "$tot" "$C" "$N" "$conn"
     (( exp_n > 0 )) && printf '   %sVencidas:%s %s' "$R" "$N" "$exp_n"
     echo
     echo " CUPO = para cuántas conexiones a la vez es la cuenta."

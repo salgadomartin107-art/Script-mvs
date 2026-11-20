@@ -70,7 +70,7 @@ muestra automáticamente el diseño clásico.
 
 ## Usuarios SSH [P]
 
-Arriba del menú se ve el resumen (usuarios, en línea y conexiones). `5) Listar usuarios` muestra por cada cuenta la fecha de
+Arriba del menú se ve el resumen (usuarios y conexiones). `5) Listar usuarios` muestra por cada cuenta la fecha de
 vencimiento, los días que le quedan (amarillo a 3 días o menos, rojo si está vencida), el cupo (para cuántas conexiones a la vez
 se creó) y cuántas conexiones tiene abiertas ahora. `6) Quién está conectado` muestra solo los que están en línea.
 
