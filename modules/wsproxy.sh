@@ -60,11 +60,14 @@ wsproxy_info() {
     echo "Payload 200: CONNECT tu.host:puerto HTTP/1.1[crlf]Host: tu.host[crlf][crlf]  (el destino real es siempre el fijo)"
 }
 
-install_wspro() { _wsproxy_install wspro 2082 "WS-PRO (WebSocket)" ws WSPRO; }
+install_wspro() { _wsproxy_install wspro 2082 "WS-PRO (WebSocket)" ws WSPRO && { conf_set WSPRO_EXTRA ""; conf_set WSPRO_CONNECT ""; }; }
 remove_wspro()  { _wsproxy_remove wspro WSPRO; }
 wspro_info() {
-    echo "Puerto: $(conf_get WSPRO_PORT) -> 127.0.0.1:$(conf_get WSPRO_TARGET)  (WebSocket real)"
-    echo "Sirve para clientes 'SSH sobre WebSocket' y para ponerlo detrás de un CDN."
+    local p
+    echo "Destino fijo: 127.0.0.1:$(conf_get WSPRO_TARGET)  (WebSocket real)"
+    for p in $(wspro_ports); do echo "  Puerto $p -> responde $(wspro_mode_label "$p")"; done
+    echo "Los clientes 'SSH sobre WebSocket' reciben siempre el 101 de WebSocket real; la respuesta elegida"
+    echo "es la que recibe un payload HTTP (HTTP Custom / Injector). Sirve también detrás de un CDN."
 }
 
 # Puertos que responden "200 Connection established" (el resto responde "101 ...").
@@ -163,6 +166,103 @@ wsproxy_menu() {
             5) wsproxy_add_ports; pause ;;
             6) wsproxy_del_port; pause ;;
             7) wsproxy_change_mode; pause ;;
+            0) return ;;
+        esac
+    done
+}
+
+# ---- WS-PRO [11]: varios puertos y respuesta 101 / 200 por puerto ----
+wspro_ports() { printf '%s %s' "$(conf_get WSPRO_PORT)" "$(conf_get WSPRO_EXTRA)" | xargs; }
+wspro_is_connect() { [[ " $(conf_get WSPRO_CONNECT) " == *" $1 "* ]]; }
+wspro_mode_label() { wspro_is_connect "$1" && echo "200 Connection established" || echo "101 Switching Protocols"; }
+wspro_connect_set() { # puerto on|off
+    local p="$1" x keep=""
+    for x in $(conf_get WSPRO_CONNECT); do [[ "$x" == "$p" ]] || keep+="$x "; done
+    [[ "$2" == on ]] && keep+="$p "
+    conf_set WSPRO_CONNECT "${keep% }"
+}
+
+wspro_set_ports() { # "p1 p2 ..." (el primero es el principal)
+    local f="/etc/systemd/system/${APP_SLUG}-wspro.service" p main extra list="$*" args=""
+    for p in $list; do
+        if wspro_is_connect "$p"; then args+=" --listen 0.0.0.0:${p}=ws200"; else args+=" --listen 0.0.0.0:$p"; fi
+    done
+    sed -i -E "/^ExecStart=/{s/ --listen [0-9.]+:[0-9]+(=[a-z0-9]+)?//g; s|(wsproxy\.py)|\1${args}|}" "$f"
+    systemctl daemon-reload; systemctl restart "${APP_SLUG}-wspro" 2>/dev/null; sleep 1
+    svc_is_active "${APP_SLUG}-wspro" || { warn "No arrancó. Revisá: journalctl -u ${APP_SLUG}-wspro -n 30"; return 1; }
+    main="${list%% *}"; extra="${list#"$main"}"; extra="${extra# }"
+    conf_set WSPRO_PORT "$main"; conf_set WSPRO_EXTRA "$extra"
+}
+
+wspro_add_ports() {
+    local cur new p added="" mode
+    cur="$(wspro_ports)"; echo "Puertos actuales: $cur"
+    read -rp "Puertos nuevos separados por espacio (ej: 8080 8888): " new
+    [[ -n "$new" ]] || return 0
+    for p in $new; do
+        valid_port "$p" || { err "Puerto inválido: $p"; return 1; }
+        [[ " $cur$added " == *" $p "* ]] && { err "El $p ya está en la lista."; return 1; }
+        port_in_use "$p" && { err "El puerto $p ya está en uso."; return 1; }
+        added+=" $p"
+    done
+    echo "Respuesta de los puertos nuevos:  1) 101 Switching Protocols   2) 200 Connection established"
+    read -rp "Opción [1]: " mode
+    for p in $added; do if [[ "$mode" == 2 ]]; then wspro_connect_set "$p" on; fi; done
+    warn "Se reinicia WS-PRO: se cortan las conexiones que estén pasando por él."
+    confirm "¿Continuar?" || { for p in $added; do wspro_connect_set "$p" off; done; return 0; }
+    wspro_set_ports "$cur$added" || return 1
+    for p in $added; do ufw status 2>/dev/null | grep -q "Status: active" && ufw allow "$p/tcp" >/dev/null 2>&1; done
+    ok "Puertos de WS-PRO: $(wspro_ports)"
+    warn "En la nube, abrí también$added en el firewall del proveedor (NSG de Azure)."
+}
+
+wspro_del_port() {
+    local cur main p x keep=""
+    cur="$(wspro_ports)"; main="${cur%% *}"; echo "Puertos actuales: $cur   (el principal $main no se puede quitar)"
+    read -rp "Puerto a quitar: " p
+    [[ " $cur " == *" $p "* ]] || { err "Ese puerto no es de WS-PRO."; return 1; }
+    [[ "$p" == "$main" ]] && { err "Es el principal. Para cambiarlo, reinstalá."; return 1; }
+    for x in $cur; do [[ "$x" == "$p" ]] || keep+="$x "; done
+    wspro_connect_set "$p" off
+    wspro_set_ports "${keep% }" && ok "Puerto $p quitado. Quedan: $(wspro_ports)"
+}
+
+wspro_change_mode() {
+    local cur p op
+    cur="$(wspro_ports)"
+    for p in $cur; do echo "  $p -> $(wspro_mode_label "$p")"; done
+    read -rp "Puerto a cambiar: " p
+    [[ " $cur " == *" $p "* ]] || { err "Ese puerto no es de WS-PRO."; return 1; }
+    echo " 1) 101 Switching Protocols   2) 200 Connection established"
+    read -rp "Nueva respuesta: " op
+    case "$op" in 1) wspro_connect_set "$p" off ;; 2) wspro_connect_set "$p" on ;; *) return 0 ;; esac
+    warn "Se reinicia WS-PRO: se cortan las conexiones que estén pasando por él."
+    confirm "¿Continuar?" || return 0
+    wspro_set_ports "$cur" && ok "Puerto $p responde ahora: $(wspro_mode_label "$p")"
+}
+
+wspro_menu() {
+    local op
+    if [[ "$(state_of 11)" != on ]]; then install_wspro; pause; return; fi
+    while true; do
+        title "WS-PRO"
+        echo " Estado: ${G}ACTIVO${N}"; bar
+        echo " 1) Ver datos"
+        echo " 2) Reinstalar / cambiar puerto principal"
+        echo " 3) Quitar"
+        echo " 4) Agregar puertos (sin borrar los actuales)"
+        echo " 5) Quitar un puerto"
+        echo " 6) Cambiar respuesta de un puerto (101 / 200 Connection established)"
+        echo " 0) Volver"
+        bar; read -rp " Opción: " op
+        case "$op" in
+            1) wspro_info; pause ;;
+            2) systemctl stop "${APP_SLUG}-wspro" 2>/dev/null
+               install_wspro || systemctl start "${APP_SLUG}-wspro" 2>/dev/null; pause ;;
+            3) confirm "¿Quitar WS-PRO?" && remove_wspro; pause; return ;;
+            4) wspro_add_ports; pause ;;
+            5) wspro_del_port; pause ;;
+            6) wspro_change_mode; pause ;;
             0) return ;;
         esac
     done

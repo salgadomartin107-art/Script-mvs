@@ -53,6 +53,10 @@ El puerto de WS-PRO acepta WebSocket real (con `Sec-WebSocket-Key`, framing y pi
 HTTP Custom / HTTP Injector, recibe igual `101 Switching Protocols` (o `200 Connection established` a un CONNECT) y sigue como flujo
 crudo hacia el destino fijo. Un payload con varias peticiones (`[split]`) recibe una respuesta por cada una.
 
+Desde la v1.18 el menú de WS-PRO [11] permite agregar puertos sin borrar los actuales, quitarlos y **cambiar la respuesta de cada
+puerto** (101 Switching Protocols o 200 Connection established) para los clientes con payload. Un cliente WebSocket real recibe siempre el 101
+de WebSocket.
+
 ## Pantalla principal
 
 Arriba se ve el uso de CPU, RAM y disco del VPS (con lo que queda libre). Los protocolos van numerados (1 a 20) y las herramientas

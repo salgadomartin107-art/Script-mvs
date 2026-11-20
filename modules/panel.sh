@@ -89,7 +89,7 @@ port_specs() {
         "DROPBEAR|$(dropbear_ports)"        "BADVPN|$(conf_get UDPGW_PORT)"
         "SSH|$(sshd_ports | tr '\n' ' ' | xargs)" "UDP|$(conf_get HY_PORT)"
         "ARCHIVOS|$(conf_get FILESERVER_PORT)" "PYTHON|$(wsproxy_ports)"
-        "SSL|$(conf_get SSL_PORT)"          "WS-PRO|$(conf_get WSPRO_PORT)"
+        "SSL|$(conf_get SSL_PORT)"          "WS-PRO|$(wspro_ports)"
         "SQUID|$(conf_get SQUID_PORT)"      "OPENVPN|$(conf_get OVPN_PORT)"
         "V2RAY|$(conf_get XRAY_PORT)"       "WG|$(conf_get WG_PORT)"
         "TROJAN|$(conf_get TROJAN_PORT)"    "SS|$(conf_get SS_PORT)"
@@ -265,7 +265,7 @@ panel_menu() {
             8)  manage 8  OPENVPN       install_openvpn     openvpn_info      remove_openvpn ;;
             9)  manage 9  SLOWDNS       install_slowdns     slowdns_info      remove_slowdns ;;
             10) wireguard_menu ;;
-            11) manage 11 WS-PRO        install_wspro       wspro_info        remove_wspro ;;
+            11) wspro_menu ;;
             12) trojan_menu ;;
             13) manage 13 HYSTERIA2     install_hysteria    hysteria_info     remove_hysteria ;;
             14) manage 14 HCR           install_hcr         hcr_info          remove_hcr ;;

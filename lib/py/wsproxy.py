@@ -216,7 +216,7 @@ def serve(c, a, mode):
             buf += chunk
         head, _, rest = buf.partition(b"\r\n\r\n")
         hdr = parse_head(head)
-        if mode == "ws":
+        if mode in ("ws", "ws200"):
             key = hdr.get("sec-websocket-key", "")
             if "websocket" in hdr.get("upgrade", "").lower() and key:
                 # WebSocket real (RFC 6455): handshake con Sec-WebSocket-Accept y framing
@@ -228,7 +228,7 @@ def serve(c, a, mode):
                 pipe_ws(c, t, a.idle, rest, a.ping)
                 return
             # Cualquier otra petición (payload de HTTP Custom / HTTP Injector): 101 y flujo crudo, como en el modo raw
-        t = plain_session(c, a, head, rest, mode == "connect")
+        t = plain_session(c, a, head, rest, mode in ("connect", "ws200"))
         if t is not None:
             pipe_raw(c, t, a.idle)
     except Exception:
@@ -259,7 +259,7 @@ def main():
     ap.add_argument("--listen", required=True, action="append",
                     help="host:puerto; se puede repetir para escuchar en varios puertos")
     ap.add_argument("--target", required=True)
-    ap.add_argument("--mode", choices=("raw", "ws", "connect"), default="raw")
+    ap.add_argument("--mode", choices=("raw", "ws", "connect", "ws200"), default="raw")
     ap.add_argument("--status", default="Switching Protocols")
     ap.add_argument("--status-file", default="")
     ap.add_argument("--idle", type=int, default=3600)
@@ -273,9 +273,9 @@ def main():
         raise SystemExit("Texto de estado inválido.")
     servers = []
     for spec in a.listen:
-        spec, _, smode = spec.partition("=")   # host:puerto[=raw|connect|ws]
+        spec, _, smode = spec.partition("=")   # host:puerto[=raw|connect|ws|ws200]
         smode = smode or a.mode
-        if smode not in ("raw", "connect", "ws"):
+        if smode not in ("raw", "connect", "ws", "ws200"):
             raise SystemExit("Modo inválido: " + smode)
         lhost, lport = hostport(spec)
         srv = socket.socket()
