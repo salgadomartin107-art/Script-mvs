@@ -17,9 +17,11 @@ menu_users() {
     local op name pass days limit
     while true; do
         title "Usuarios SSH"
+        users_summary; bar
         echo " 1) Crear usuario      4) Cambiar límite"
         echo " 2) Eliminar usuario   5) Listar usuarios"
-        echo " 3) Renovar usuario    0) Volver"
+        echo " 3) Renovar usuario    6) Quién está conectado"
+        echo " 0) Volver"
         bar; read -rp " Opción: " op
         case "$op" in
             1) user_create_prompt; pause ;;
@@ -27,6 +29,7 @@ menu_users() {
             3) read -rp "Usuario: " name; read -rp "Días [30]: " days; user_renew "$name" "${days:-30}"; pause ;;
             4) read -rp "Usuario: " name; read -rp "Nuevo límite: " limit; user_set_limit "$name" "$limit"; pause ;;
             5) user_list; pause ;;
+            6) user_list 1; pause ;;
             0) return ;;
         esac
     done

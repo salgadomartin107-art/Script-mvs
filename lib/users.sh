@@ -115,13 +115,63 @@ user_set_limit() { # nombre limite
 
 user_online() { local n; n="$(pgrep -u "$1" -c 'sshd|dropbear' 2>/dev/null)"; echo "${n:-0}"; }
 
-user_list() {
+# Conexiones abiertas por usuario (sshd + dropbear) en una sola pasada: llena el array ONLINE_OF
+users_online_load() {
+    local u c
+    declare -gA ONLINE_OF=()
+    while read -r u c; do [[ -n "$u" ]] && ONLINE_OF["$u"]="$c"; done < <(
+        ps -eo user=,comm= 2>/dev/null | awk '$2=="sshd" || $2=="dropbear" {n[$1]++} END {for (k in n) print k, n[k]}')
+    return 0
+}
+
+# Días que le quedan a una cuenta (negativo = vencida)
+user_days_left() { # AAAA-MM-DD
+    local t e
+    e="$(date -d "$1" +%s 2>/dev/null)" || { echo 0; return; }
+    t="$(date -d "$(date +%F)" +%s)"
+    echo $(( (e - t) / 86400 ))
+}
+
+# Resumen de una línea para el menú de usuarios
+users_summary() {
+    local u tot=0 conn=0 on=0 n
+    [[ -s "$USERS_DB" ]] || { echo " Usuarios: 0"; return; }
+    users_online_load
+    while IFS='|' read -r u _; do
+        [[ -n "$u" ]] || continue
+        tot=$((tot + 1)); n="${ONLINE_OF[$u]:-0}"
+        if (( n > 0 )); then on=$((on + 1)); conn=$((conn + n)); fi
+    done < "$USERS_DB"
+    printf ' %sUsuarios:%s %s   %sEn línea:%s %s   %sConexiones:%s %s\n' "$Y" "$N" "$tot" "$G" "$N" "$on" "$C" "$N" "$conn"
+}
+
+# Lista de usuarios: vence, días que quedan, cupo (para cuántas conexiones se creó la cuenta) y conectados ahora.
+user_list() { # [solo_conectados]
+    local only="${1:-}" u e l d n cupo dtxt dcol ocol tot=0 conn=0 on=0 shown=0 exp_n=0
     [[ -s "$USERS_DB" ]] || { info "No hay usuarios creados."; return; }
-    printf '%-18s %-12s %-8s %-8s\n' USUARIO VENCE LIMITE ONLINE
+    users_online_load
+    printf ' %s%-15s %-10s %-7s %-9s %s%s\n' "$WH" USUARIO VENCE QUEDAN CUPO ONLINE "$N"
     while IFS='|' read -r u e l _; do
         [[ -n "$u" ]] || continue
-        printf '%-18s %-12s %-8s %-8s\n' "$u" "$e" "$l" "$(user_online "$u")"
+        tot=$((tot + 1)); n="${ONLINE_OF[$u]:-0}"
+        (( n > 0 )) && { on=$((on + 1)); conn=$((conn + n)); }
+        [[ -n "$only" && "$n" -eq 0 ]] && continue
+        d="$(user_days_left "$e")"
+        if (( d < 0 )); then dtxt="VENCIDA"; dcol="$R"; exp_n=$((exp_n + 1))
+        elif (( d <= 3 )); then dtxt="${d} d"; dcol="$Y"
+        else dtxt="${d} d"; dcol="$N"; fi
+        if [[ "$l" == 0 || -z "$l" ]]; then cupo="ilimitado"; else cupo="para $l"; fi
+        ocol="$N"; (( n > 0 )) && ocol="$G"
+        printf ' %-15.15s %-10s %s%-7s%s %-9s %s%s%s\n' "$u" "$e" "$dcol" "$dtxt" "$N" "$cupo" "$ocol" "$n" "$N"
+        shown=$((shown + 1))
     done < "$USERS_DB"
+    (( shown == 0 )) && echo " Nadie conectado en este momento."
+    echo
+    printf ' %sUsuarios:%s %s   %sEn línea:%s %s   %sConexiones:%s %s' "$Y" "$N" "$tot" "$G" "$N" "$on" "$C" "$N" "$conn"
+    (( exp_n > 0 )) && printf '   %sVencidas:%s %s' "$R" "$N" "$exp_n"
+    echo
+    echo " CUPO = para cuántas conexiones a la vez es la cuenta."
+    echo " ONLINE = conexiones abiertas ahora."
 }
 
 # Elimina usuarios vencidos

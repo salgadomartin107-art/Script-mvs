@@ -68,6 +68,12 @@ Desde la v1.17 la pantalla va en cajas redondeadas de colores: cabecera con la v
 de 57 columnas o más con 256 colores (JuiceSSH, Termux, etc.); si es más angosta o no es una terminal real,
 muestra automáticamente el diseño clásico.
 
+## Usuarios SSH [P]
+
+Arriba del menú se ve el resumen (usuarios, en línea y conexiones). `5) Listar usuarios` muestra por cada cuenta la fecha de
+vencimiento, los días que le quedan (amarillo a 3 días o menos, rojo si está vencida), el cupo (para cuántas conexiones a la vez
+se creó) y cuántas conexiones tiene abiertas ahora. `6) Quién está conectado` muestra solo los que están en línea.
+
 ## Desinstalar (deja el VPS limpio)
 
     menu  →  [X] DESINSTALAR          o bien:   bash mvs-install.sh --uninstall   /   menu --uninstall
