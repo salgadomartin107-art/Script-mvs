@@ -8,6 +8,21 @@ source "$ROOT/lib/users.sh"
 # shellcheck disable=SC1090
 for m in "$ROOT"/modules/*.sh; do source "$m"; done
 
+# Si se corta la conexión (el celular se duerme, se cae la red), el terminal desaparece y read falla al instante;
+# los menús son bucles "while true", así que girarían al 100 % de CPU para siempre. Con esto el panel termina solo.
+trap 'exit 0' HUP TERM
+read() {
+    local __rd_arg __rd_ask=0 __rd_rc
+    for __rd_arg in "$@"; do [[ "$__rd_arg" == -[a-zA-Z]*p* ]] && __rd_ask=1; done
+    if (( __rd_ask )); then
+        [[ -t 0 ]] || exit 0
+        builtin read "$@"; __rd_rc=$?
+        (( __rd_rc != 0 && __rd_rc <= 128 )) && exit 0      # EOF / terminal cerrado (Ctrl-D también sale)
+        return "$__rd_rc"
+    fi
+    builtin read "$@"
+}
+
 require_root
 ensure_data
 [[ "$ROOT" == "/opt/${APP_SLUG}" ]] \
