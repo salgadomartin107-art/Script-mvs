@@ -3,7 +3,8 @@
 Corre en cualquier equipo con python3 y openssl (Termux en el celular, otra VPS, una PC). Solo biblioteca estándar.
 Configuración: archivo ~/.mvs-keybot.conf (o la ruta de MVS_KEYBOT_CONF) con líneas CLAVE=valor:
     TOKEN=token del bot (@BotFather)      CHAT=tu id numérico (@userinfobot)
-    PRIV=ruta de private.pem              URL=dirección del instalador (opcional)"""
+    PRIV=ruta de private.pem              URL=dirección del instalador (opcional)
+    REPORT_TOKEN=token de un SEGUNDO bot que solo avisa cuando se usa una key (opcional; REPORT_CHAT=chat, por defecto CHAT)"""
 import base64, json, os, secrets, subprocess, sys, time, urllib.parse, urllib.request
 
 API = os.environ.get("MVS_TG_API", "https://api.telegram.org")
@@ -24,19 +25,26 @@ def load_conf():
         if not c.get(k):
             sys.exit("Falta %s en %s" % (k, CONF))
     c.setdefault("PRIV", os.path.expanduser("~/private.pem"))
+    c.setdefault("REPORT_CHAT", c["CHAT"])          # opcional: REPORT_TOKEN = token de un bot aparte que solo avisa
     c.setdefault("URL", DEFAULT_URL)
     if not os.path.isfile(c["PRIV"]):
         sys.exit("No encuentro la clave privada: " + c["PRIV"])
     return c
 
 
-def make_key(priv):
-    """Mismo formato que el instalador: MVS.<hora>.<azar>.<firma ECDSA SHA-256 en base64url>"""
+def make_key(priv, report=None):
+    """Mismo formato que el instalador: MVS.<hora>.<azar>[.<destino del aviso>].<firma ECDSA SHA-256 en base64url>
+    report = (token_del_bot_avisador, chat_id): va dentro de la key (firmado) y el instalador avisa a ese chat al usarla."""
     iat = int(time.time())
     rnd = secrets.token_hex(3)
-    sig = subprocess.run(["openssl", "dgst", "-sha256", "-sign", priv], input=("%d.%s" % (iat, rnd)).encode(),
+    rep = ""
+    if report:
+        rep = base64.urlsafe_b64encode(("%s|%s" % report).encode()).rstrip(b"=").decode()
+    data = "%d.%s%s" % (iat, rnd, "." + rep if rep else "")
+    sig = subprocess.run(["openssl", "dgst", "-sha256", "-sign", priv], input=data.encode(),
                          capture_output=True, check=True).stdout
-    return "MVS.%d.%s.%s" % (iat, rnd, base64.urlsafe_b64encode(sig).rstrip(b"=").decode()), iat
+    sig = base64.urlsafe_b64encode(sig).rstrip(b"=").decode()
+    return "MVS.%d.%s.%s%s" % (iat, rnd, rep + "." if rep else "", sig), iat
 
 
 def call(token, method, **params):
@@ -85,7 +93,7 @@ def handle(c, text, state):
         if time.time() - state.get("last", 0) < 3:
             return []
         state["last"] = time.time()
-        key, iat = make_key(c["PRIV"])
+        key, iat = make_key(c["PRIV"], (c["REPORT_TOKEN"], c["REPORT_CHAT"]) if c.get("REPORT_TOKEN") else None)
         return [card(c["URL"], key, time.strftime("%H:%M", time.localtime(iat + TTL)))]
     return ["Comando no reconocido. Usá /key"]
 

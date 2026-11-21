@@ -70,6 +70,14 @@ Se valida sin servidor, con una firma ECDSA (clave pública en `config/install-p
 **Es un freno, no una barrera:** el instalador es texto y quien lo edite puede quitar la validación. Para obligarla de verdad hace falta
 que el instalador se entregue desde un servidor que compruebe la key.
 
+### Aviso cuando se usa una key
+
+Si al generar la key hay un bot avisador configurado (`REPORT_TOKEN=` en `~/.mvs-keybot.conf`, o el archivo `/root/.mvs-signing/report`
+con `TOKEN ID_DE_TU_CHAT`), la key lleva ese destino adentro (firmado) y el instalador manda un mensaje a tu Telegram cuando se usa:
+key, IP pública y sistema de la VPS, y también si alguien intenta con una key vencida. Conviene que sea un **segundo bot**, distinto del que
+genera las keys, porque su token queda a la vista de quien reciba una key. No se guarda en el repo. Abrí ese bot y tocá Start una vez
+para que pueda escribirte. Es un aviso, no un bloqueo: una key puede usarse varias veces dentro de sus 6 horas y cada uso te avisa.
+
 ### Bot de Telegram para generar keys
 
 `lib/py/keybot.py` es un bot que responde solo a tu id de Telegram y, al escribirle `/key`, te devuelve una key nueva y el comando de
