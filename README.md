@@ -100,6 +100,14 @@ para que pueda escribirte. Es un aviso, no un bloqueo: una key puede usarse vari
 instalación. Corre donde tengas `python3` y `openssl` (Termux en el celular, otra VPS, una PC) con `~/.mvs-keybot.conf`
 (`TOKEN=`, `CHAT=`, `PRIV=` ruta de private.pem). Si la VPS tiene la clave privada, el bot del panel [L] también responde a `/key`.
 
+#### Bot de keys dentro del Worker (sin Termux ni otra máquina)
+
+El mismo Worker puede hacer de bot (`/key` y `/keys`) por webhook, 24 horas y gratis. Secretos extra en Cloudflare:
+`BOT_TOKEN` (bot que genera keys) y `SIGN_KEY` (la clave privada en PKCS8: `openssl pkcs8 -topk8 -nocrypt -in ~/private.pem | grep -v -- ----- | tr -d '\n'`).
+Opcionales: `BOT_CHAT` (si falta usa `TG_CHAT`), `INSTALL_URL`, `WEBHOOK_SECRET`. Se activa una vez abriendo
+`https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=https://<tu-worker>.workers.dev/tg` (con `&secret_token=...` si usás `WEBHOOK_SECRET`).
+Solo responde a tu id; el estado de las keys sale del mismo KV (`issued:` / `used:`).
+
 ## MULTIPLEXOR [21] (un puerto para todo, tipo sslh)
 
 Deja un solo puerto público, normalmente el 443, y reparte cada conexión según lo que llega: TLS con SNI va a SSL/TLS [5],
