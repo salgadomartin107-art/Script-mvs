@@ -1,0 +1,2 @@
+# Dirección del Worker que hace que cada key se use una sola vez (ej: https://mvs-keys.TU-USUARIO.workers.dev).
+# Vacío = sin compuerta: la key solo vence a las 6 horas y puede usarse más de una vez.

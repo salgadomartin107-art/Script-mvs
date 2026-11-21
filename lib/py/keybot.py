@@ -4,6 +4,7 @@ Corre en cualquier equipo con python3 y openssl (Termux en el celular, otra VPS,
 Configuración: archivo ~/.mvs-keybot.conf (o la ruta de MVS_KEYBOT_CONF) con líneas CLAVE=valor:
     TOKEN=token del bot (@BotFather)      CHAT=tu id numérico (@userinfobot)
     PRIV=ruta de private.pem              URL=dirección del instalador (opcional)
+    GATE_URL=dirección del Worker  GATE_ADMIN=su ADMIN_TOKEN  (key de un solo uso y /keys)
     REPORT_TOKEN=token de un SEGUNDO bot que solo avisa cuando se usa una key (opcional; REPORT_CHAT=chat, por defecto CHAT)"""
 import base64, json, os, secrets, subprocess, sys, time, urllib.parse, urllib.request
 
@@ -25,7 +26,8 @@ def load_conf():
         if not c.get(k):
             sys.exit("Falta %s en %s" % (k, CONF))
     c.setdefault("PRIV", os.path.expanduser("~/private.pem"))
-    c.setdefault("REPORT_CHAT", c["CHAT"])          # opcional: REPORT_TOKEN = token de un bot aparte que solo avisa
+    c.setdefault("REPORT_CHAT", c["CHAT"])
+    c["KEYS"] = os.path.expanduser("~/.mvs-keybot-keys.json")   # keys emitidas (para /keys); GATE_URL y GATE_ADMIN = el Worker          # opcional: REPORT_TOKEN = token de un bot aparte que solo avisa
     c.setdefault("URL", DEFAULT_URL)
     if not os.path.isfile(c["PRIV"]):
         sys.exit("No encuentro la clave privada: " + c["PRIV"])
@@ -85,16 +87,58 @@ def card(url, key, hasta=""):
         "══════════════════════════════" % (esc(cmd), key))
 
 
+def remember(c, kid, iat):
+    try:
+        with open(c["KEYS"]) as f:
+            lst = json.load(f)
+    except Exception:
+        lst = []
+    lst = [k for k in lst if time.time() - k["iat"] < 24 * 3600] + [{"kid": kid, "iat": iat}]
+    with open(c["KEYS"], "w") as f:
+        json.dump(lst[-30:], f)
+
+
+def keys_report(c):
+    """Lista las keys recientes con su estado (necesita el Worker: GATE_URL y GATE_ADMIN en la configuración)."""
+    if not (c.get("GATE_URL") and c.get("GATE_ADMIN")):
+        return "Para ver si las keys se usaron hace falta la compuerta (Worker). Mirá el README: «Key de un solo uso»."
+    try:
+        with open(c["KEYS"]) as f:
+            lst = json.load(f)
+    except Exception:
+        lst = []
+    lst = [k for k in lst if time.time() - k["iat"] < 24 * 3600][-10:]
+    if not lst:
+        return "No hay keys generadas en las últimas 24 horas."
+    req = urllib.request.Request(c["GATE_URL"].rstrip("/") + "/status", data=json.dumps({"kids": [k["kid"] for k in lst]}).encode(),
+                                 headers={"content-type": "application/json", "authorization": "Bearer " + c["GATE_ADMIN"]})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        st = json.load(r)
+    out = ["🔑 Keys recientes"]
+    for k in reversed(lst):
+        u, left = st.get(k["kid"]), k["iat"] + TTL - time.time()
+        if u:
+            out.append("✅ %s USADA %s UTC · %s · %s" % (k["kid"], u["t"][11:16], u["ip"], u["os"]))
+        elif left > 0:
+            out.append("🟡 %s sin usar · vence en %dh %02dmin" % (k["kid"], left // 3600, left % 3600 // 60))
+        else:
+            out.append("⌛ %s venció sin usarse" % k["kid"])
+    return "\n".join(out)
+
+
 def handle(c, text, state):
     cmd = text.strip().split()[0].split("@")[0].lower() if text.strip() else ""
     if cmd in ("/start", "/ayuda", "/help"):
-        return ["Escribí /key para generar una key de instalación de MvS (vale 6 horas)."]
+        return ["Escribí /key para generar una key de instalación de MvS (vale 6 horas).\n/keys muestra si las keys recientes fueron usadas."]
     if cmd in ("/key", "/clave"):
         if time.time() - state.get("last", 0) < 3:
             return []
         state["last"] = time.time()
         key, iat = make_key(c["PRIV"], (c["REPORT_TOKEN"], c["REPORT_CHAT"]) if c.get("REPORT_TOKEN") else None)
+        remember(c, "%d.%s" % (iat, key.split(".")[2]), iat)
         return [card(c["URL"], key, time.strftime("%H:%M", time.localtime(iat + TTL)))]
+    if cmd in ("/keys", "/estado"):
+        return [keys_report(c)]
     return ["Comando no reconocido. Usá /key"]
 
 

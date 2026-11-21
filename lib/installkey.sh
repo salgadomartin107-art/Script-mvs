@@ -12,6 +12,7 @@ IKEY_PRIV="${IKEY_PRIV:-/root/.mvs-signing/private.pem}"
 IKEY_REPORT_FILE="${IKEY_REPORT_FILE:-/root/.mvs-signing/report}"   # una línea: TOKEN_DEL_BOT_AVISADOR ID_DE_TU_CHAT
 IKEY_TG_API="${IKEY_TG_API:-https://api.telegram.org}"
 IKEY_REP=""     # "token|chat" que trae la key (si fue generada con aviso)
+IKEY_GATE_FILE="${IKEY_GATE_FILE:-${SRC:-.}/config/install-gate}"   # URL del Worker que impide reutilizar una key (opcional)
 
 ikey_b64url_decode() { # stdin: base64url sin relleno -> stdout binario
     local s; s="$(tr '_-' '/+')"
@@ -70,9 +71,27 @@ Hora: $(date -u '+%F %H:%M') UTC"
     return 0
 }
 
+ikey_gate_url() { [[ -r "$IKEY_GATE_FILE" ]] && grep -v '^#' "$IKEY_GATE_FILE" | head -1 | tr -d '[:space:]'; return 0; }
+
+# Consulta al Worker y reclama la key (solo la primera vez da ok).  0 = ok. 1 = ya usada. 2 = no se pudo consultar. 3 = vencida/inválida.
+ikey_gate_claim() { # url key
+    local url="$1" key="$2" osn resp
+    command -v curl >/dev/null 2>&1 || { apt-get update -y >/dev/null 2>&1; DEBIAN_FRONTEND=noninteractive apt-get install -y curl >/dev/null 2>&1; }
+    command -v curl >/dev/null 2>&1 || return 2
+    osn="$( . /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-${ID:-?} ${VERSION_ID:-}} ($(uname -m))")"
+    osn="${osn//[^A-Za-z0-9 ._()+-]/}"
+    resp="$(curl -sS -m 20 -H 'content-type: application/json' -d "{\"key\":\"${key}\",\"os\":\"${osn}\"}" "${url%/}/claim" 2>/dev/null)" || return 2
+    case "$resp" in
+        *'"ok":true'*) return 0 ;;
+        *'"reason":"used"'*) return 1 ;;
+        *'"reason":"expired"'*|*'"reason":"invalid"'*|*'"reason":"early"'*) return 3 ;;
+        *) return 2 ;;
+    esac
+}
+
 # Pide y valida la key (variable MVS_KEY o pregunta). Sale si no es válida.
 installkey_require() {
-    local key="${MVS_KEY:-}" tries=0 rc
+    local key="${MVS_KEY:-}" tries=0 rc g gate; gate="$(ikey_gate_url)"
     command -v openssl >/dev/null 2>&1 || { apt-get update -y >/dev/null 2>&1; DEBIAN_FRONTEND=noninteractive apt-get install -y openssl >/dev/null 2>&1; }
     command -v openssl >/dev/null 2>&1 || die "Falta openssl para validar la key (apt install openssl)."
     [[ -r "$IKEY_PUB" ]] || die "Falta config/install-pub.pem: el instalador está incompleto."
@@ -81,13 +100,21 @@ installkey_require() {
             if [[ -t 0 ]]; then read -rp "Key de instalación: " key || true
             elif { : </dev/tty; } 2>/dev/null; then read -rp "Key de instalación: " key </dev/tty || true
             fi
-            [[ -n "$key" ]] || die "Hace falta una key de instalación. Usá:  MVS_KEY=tu_key bash mvs.sh"
+            [[ -n "$key" ]] || { (( tries > 0 )) && die "Sin una key válida no se instala."; die "Hace falta una key de instalación. Usá:  MVS_KEY=tu_key bash mvs.sh"; }
         fi
         key="${key//[[:space:]]/}"
         ikey_verify "$key" && rc=0 || rc=$?
         case $rc in
-            0) say "Key válida."; ikey_report 0 "$key"; return 0 ;;
-            2) warn "La key venció (duran 6 horas). Pedí una nueva."; ikey_report 2 "$key" ;;
+            0) if [[ -n "$gate" ]]; then
+                   ikey_gate_claim "$gate" "$key" && g=0 || g=$?
+                   case $g in
+                       0) say "Key válida (queda usada: sirve una sola vez)."; return 0 ;;
+                       1) warn "Esa key ya fue usada. Cada key sirve una sola vez: pedí una nueva." ;;
+                       2) warn "No se pudo verificar la key por internet. Revisá la conexión de la VPS y probá de nuevo." ;;
+                       *) warn "La key no es válida o venció." ;;
+                   esac
+               else say "Key válida."; ikey_report 0 "$key"; return 0; fi ;;
+            2) warn "La key venció (duran 6 horas). Pedí una nueva."; [[ -n "$gate" ]] || ikey_report 2 "$key" ;;
             3) warn "El reloj de esta VPS está atrasado respecto de la key. Sincronizá la hora (timedatectl set-ntp true) y probá de nuevo." ;;
             *) warn "Key inválida." ;;
         esac

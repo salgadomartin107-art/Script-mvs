@@ -70,6 +70,22 @@ Se valida sin servidor, con una firma ECDSA (clave pública en `config/install-p
 **Es un freno, no una barrera:** el instalador es texto y quien lo edite puede quitar la validación. Para obligarla de verdad hace falta
 que el instalador se entregue desde un servidor que compruebe la key.
 
+### Key de un solo uso (compuerta en Cloudflare)
+
+Para que una key sirva **una sola vez** hace falta que algo recuerde cuáles ya se usaron, y una VPS nueva no recuerda nada. Eso lo hace un
+Worker de Cloudflare (plan gratis) con el código de `tools/keygate-worker.js`: el instalador le pregunta antes de instalar, el Worker
+comprueba la firma, la hora y si la key ya se usó, y avisa a tu Telegram (uso, intento de reutilizarla, intento con key vencida).
+Si el Worker no responde, **no se instala** (si no, bastaría con cortar internet para saltarse el control).
+
+1. Cloudflare → Workers & Pages → Create → Worker → pegá el código de `tools/keygate-worker.js` → Deploy.
+2. Storage & Databases → KV → crear un namespace → en el Worker, Settings → Bindings → KV namespace con el nombre `KEYS`.
+3. Settings → Variables and Secrets (tipo secret): `ADMIN_TOKEN` (una clave larga que inventes), `TG_TOKEN` y `TG_CHAT` (bot que te avisa y tu id).
+4. Poné la dirección del Worker (`https://....workers.dev`) en `config/install-gate`, publicá, y en `~/.mvs-keybot.conf` agregá
+   `GATE_URL=` (la misma dirección) y `GATE_ADMIN=` (el ADMIN_TOKEN). El bot responde a `/keys` con el estado de las keys recientes.
+
+Con `config/install-gate` vacío el instalador funciona como antes (6 horas, sin control de reutilización). Una key reclamada se recuerda 8 horas.
+El almacén KV es eventualmente consistente: dos usos en el mismo segundo desde distintos lugares podrían pasar los dos; copiar una key y usarla después se bloquea.
+
 ### Aviso cuando se usa una key
 
 Si al generar la key hay un bot avisador configurado (`REPORT_TOKEN=` en `~/.mvs-keybot.conf`, o el archivo `/root/.mvs-signing/report`
