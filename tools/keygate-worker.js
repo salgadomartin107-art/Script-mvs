@@ -180,12 +180,23 @@ async function webhook(req, env) {
   return json({ ok: true });
 }
 
+async function diag(req, env) {            // revisa la configuración del bot sin mostrar secretos
+  if (!env.ADMIN_TOKEN || req.headers.get("authorization") !== `Bearer ${env.ADMIN_TOKEN}`) return json({ error: "no autorizado" }, 401);
+  const out = { BOT_TOKEN: !!env.BOT_TOKEN, SIGN_KEY: !!env.SIGN_KEY, dueño_id: String(env.BOT_CHAT || env.TG_CHAT || "") || "FALTA (TG_CHAT o BOT_CHAT)" };
+  if (env.BOT_TOKEN) { try { const r = await (await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/getMe`)).json(); out.bot = r.ok ? "@" + r.result.username : "TOKEN RECHAZADO: " + r.description; } catch (e) { out.bot = "sin conexión"; } }
+  if (env.SIGN_KEY) { try { await makeKey(env); out.firma = "ok"; } catch (e) { out.firma = "ERROR: " + String(e.message || e); } }
+  if (env.BOT_TOKEN && out.dueño_id[0] !== "F") { try { const r = await (await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ chat_id: out.dueño_id, text: "✅ Prueba del Worker: el bot puede escribirte." }) })).json(); out.envio = r.ok ? "ok (mirá Telegram)" : "ERROR: " + r.description; } catch (e) { out.envio = "sin conexión"; } }
+  return json(out);
+}
+
 export default {
   async fetch(req, env, ctx) {
     const p = new URL(req.url).pathname;
     if (!env.KEYS) return json({ ok: false, reason: "config", error: "falta el enlace KV con el nombre KEYS (Settings > Bindings)" }, 500);
     if (req.method === "POST" && p === "/claim") return claim(req, env, ctx);
     if (req.method === "POST" && p === "/tg") return webhook(req, env);
+    if (req.method === "POST" && p === "/diag") return diag(req, env);
     if (req.method === "POST" && p === "/status") return status(req, env);
     return new Response("MvS key gate", { status: 200 });
   },
