@@ -57,6 +57,19 @@ Desde la v1.18 el menú de WS-PRO [11] permite agregar puertos sin borrar los ac
 puerto** (101 Switching Protocols o 200 Connection established) para los clientes con payload. Un cliente WebSocket real recibe siempre el 101
 de WebSocket.
 
+## Key de instalación (6 horas)
+
+Para instalar en una VPS nueva el instalador pide una key y solo la acepta durante **6 horas** desde que se generó. Se genera con
+`[R] KEY INSTALACION`, que **solo aparece en tu VPS de administración**, la que tiene la clave privada en `/root/.mvs-signing/private.pem`
+(permisos 600; no la subas nunca al repo). La pantalla muestra la key, cuándo vence y el comando listo para pegar:
+
+    wget -qO mvs.sh <URL del instalador> && MVS_KEY=<la key> bash mvs.sh
+
+También se puede ejecutar `bash mvs.sh` y pegar la key cuando la pida. Actualizar con `[Z]` o reinstalar donde ya está instalado no pide key.
+Se valida sin servidor, con una firma ECDSA (clave pública en `config/install-pub.pem`) y la hora de la VPS nueva.
+**Es un freno, no una barrera:** el instalador es texto y quien lo edite puede quitar la validación. Para obligarla de verdad hace falta
+que el instalador se entregue desde un servidor que compruebe la key.
+
 ## MULTIPLEXOR [21] (un puerto para todo, tipo sslh)
 
 Deja un solo puerto público, normalmente el 443, y reparte cada conexión según lo que llega: TLS con SNI va a SSL/TLS [5],

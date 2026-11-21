@@ -125,8 +125,10 @@ panel_lists() {
          "E|TCP BBR|" "F|DNS SERVIDOR|" "G|LIBERAR RAM|" "H|SCANNER SUBDOMINIO|"
          "I|TEST DE VELOCIDAD|" "J|FIX ORACLE/AWS/AZR|" "K|HERRAM. BASICAS|"
          "L|BOT TELEGRAM|$(state_of 31)" "M|NOTI-BOT|$(state_of 32)"
-         "N|CHECK-USER|$(state_of 33)" "O|TELEGRAM|$(state_of 34)" "P|USUARIOS SSH|" "Q|OPTIMIZAR|$(state_of 38)"
-         "Z|ACTUALIZAR SCRIPT|" "X|DESINSTALAR|" "0|◄ SALIR|" )
+         "N|CHECK-USER|$(state_of 33)" "O|TELEGRAM|$(state_of 34)" "P|USUARIOS SSH|" "Q|OPTIMIZAR|$(state_of 38)" )
+    # [R] solo aparece en la VPS de administración (la que tiene la clave privada para firmar keys)
+    declare -F instkey_available >/dev/null && instkey_available && T1+=( "R|KEY INSTALACION|" )
+    T1+=( "Z|ACTUALIZAR SCRIPT|" "X|DESINSTALAR|" "0|◄ SALIR|" )
 }
 
 # La pantalla en cajas necesita una terminal real de al menos 57 columnas
@@ -254,7 +256,7 @@ panel_menu() {
             0|[1-9]|1[0-8]|Z|X) id="$k" ;;
             19) id=36 ;; 20) id=37 ;; 21) id=39 ;;
             A) id=19 ;; B) id=20 ;; C) id=21 ;; D) id=22 ;; E) id=23 ;; F) id=24 ;; G) id=25 ;; H) id=26 ;;
-            I) id=27 ;; J) id=28 ;; K) id=29 ;; L) id=31 ;; M) id=32 ;; N) id=33 ;; O) id=34 ;; P) id=35 ;; Q) id=38 ;;
+            I) id=27 ;; J) id=28 ;; K) id=29 ;; L) id=31 ;; M) id=32 ;; N) id=33 ;; O) id=34 ;; P) id=35 ;; Q) id=38 ;; R) id=40 ;;
             *) continue ;;
         esac
         case "$id" in
@@ -276,6 +278,7 @@ panel_menu() {
             18) manage 18 UDP-CUSTOM    install_udpcustom   udpcustom_info    remove_udpcustom ;;
             36) hevsocks_menu ;;
             37) wstunnel_menu ;;
+            40) instkey_screen; pause ;;
             39) manage 39 MULTIPLEXOR   install_mux         mux_info          remove_mux ;;
             38) optimize_menu ;;
             19) fileserver_menu ;;

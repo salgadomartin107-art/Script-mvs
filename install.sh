@@ -17,6 +17,13 @@ die()  { printf '\033[1;31m[x]\033[0m %s\n' "$*" >&2; exit 1; }
 [[ "${1:-}" == "--uninstall" ]] && exec "$SRC/bin/menu" --uninstall
 command -v apt-get >/dev/null 2>&1 || die "Se requiere Debian o Ubuntu (apt)."
 
+# ---------- key de instalación (dura 6 horas; solo se pide en una VPS nueva, no al actualizar) ----------
+if [[ ! -x "/opt/${APP_SLUG}/bin/menu" ]]; then
+    # shellcheck disable=SC1091
+    source "$SRC/lib/installkey.sh"
+    installkey_require
+fi
+
 # ---------- sistema operativo y arquitectura ----------
 OS_ID=""; OS_VER=""
 if [[ -r /etc/os-release ]]; then
