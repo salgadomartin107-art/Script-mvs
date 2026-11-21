@@ -50,25 +50,31 @@ def send(c, chat, text):
     call(c["TOKEN"], "sendMessage", chat_id=chat, text=text, parse_mode="HTML")
 
 
-def card(url, key, hasta):
+def card(url, key, hasta=""):
     """Mensaje del bot (HTML de Telegram). El comando y la key van en <code> para copiarlos con un toque."""
     cmd = "apt update -y; apt upgrade -y; wget -qO mvs-install.sh %s && bash mvs-install.sh" % url
     esc = lambda t: t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     return (
-        "                  ╔══════════════════╗\n"
-        "                  ♧INSTALADOR SCRIPT MvS♧\n"
-        "                  ╚══════════════════╝\n\n"
-        "╔═════♤COMANDO DE INSTALACIÓN♤═════╗\n"
+        "═════════════════════════════\n"
+        "              ♧INSTALADOR SCRIPT MvS♧\n"
+        "═════════════════════════════\n"
+        "\n"
+        "════♤COMANDO DE INSTALACIÓN♤════\n"
         "<code>%s</code>\n"
-        "╚═══════════════════════════════╝\n\n"
-        "╔══════《SISTEMAS COMPATIBLES》══════╗\n\n"
-        "S.O Ubuntu 18.04 a 26.04 X64(x86|ARM)\n\n"
-        "Debian 8 a 12 (x64)\n\n"
-        "╚═══════════════════════════════╝\n"
-        "╔════════ &lt;🔐 KEY DE ACCESO&gt; ════════╗\n"
+        "═════════════════════════════\n"
+        "\n"
+        "═════《SISTEMAS COMPATIBLES》═════\n"
+        "\n"
+        "S.O Ubuntu 18.04 a 26.04 X64(x86|ARM)\n"
+        "\n"
+        "Debian 8 a 12 (x64)\n"
+        "\n"
+        "══════════════════════════════\n"
+        "═════════ &lt;🔐 KEY DE ACCESO&gt; ═════\n"
         "<code>%s</code>\n"
-        "⏳ Vale 6 horas (hasta las %s)\n"
-        "╚═══════════════════════════════╝" % (esc(cmd), key, hasta))
+        "══════════════════════════════\n"
+        "     ⏳ Expira 6 horas \n"
+        "══════════════════════════════" % (esc(cmd), key))
 
 
 def handle(c, text, state):

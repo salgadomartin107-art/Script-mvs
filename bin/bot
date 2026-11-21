@@ -43,25 +43,26 @@ Carga: $(cut -d' ' -f1-3 /proc/loadavg)  Usuarios: $(wc -l < "$USERS_DB")" ;;
         /limite)  out="$(user_set_limit "${a1:-}" "${a2:-}" 2>&1 | strip)"; reply "$chat" "$out" ;;
         /key|/clave)
             if instkey_available; then
-                out="$(instkey_generate)" && reply "$chat" "                  ╔══════════════════╗
-                  ♧INSTALADOR SCRIPT MvS♧
-                  ╚══════════════════╝
+                out="$(instkey_generate)" && reply "$chat" "═════════════════════════════
+              ♧INSTALADOR SCRIPT MvS♧
+═════════════════════════════
 
-╔═════♤COMANDO DE INSTALACIÓN♤═════╗
+════♤COMANDO DE INSTALACIÓN♤════
 apt update -y; apt upgrade -y; wget -qO mvs-install.sh ${APP_UPDATE_URL} && bash mvs-install.sh
-╚═══════════════════════════════╝
+═════════════════════════════
 
-╔══════《SISTEMAS COMPATIBLES》══════╗
+═════《SISTEMAS COMPATIBLES》═════
 
 S.O Ubuntu 18.04 a 26.04 X64(x86|ARM)
 
 Debian 8 a 12 (x64)
 
-╚═══════════════════════════════╝
-╔════════ <🔐 KEY DE ACCESO> ════════╗
+══════════════════════════════
+═════════ <🔐 KEY DE ACCESO> ═════
 ${out}
-⏳ Vale 6 horas
-╚═══════════════════════════════╝"
+══════════════════════════════
+     ⏳ Expira 6 horas 
+══════════════════════════════"
             else reply "$chat" "Esta VPS no tiene la clave privada: no puede generar keys."; fi ;;
         *) reply "$chat" "Comando no reconocido. /ayuda" ;;
     esac
