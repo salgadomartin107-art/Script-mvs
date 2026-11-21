@@ -87,6 +87,7 @@ async function status(req, env) {          // el bot de keys pregunta cuáles se
 export default {
   async fetch(req, env, ctx) {
     const p = new URL(req.url).pathname;
+    if (!env.KEYS) return json({ ok: false, reason: "config", error: "falta el enlace KV con el nombre KEYS (Settings > Bindings)" }, 500);
     if (req.method === "POST" && p === "/claim") return claim(req, env, ctx);
     if (req.method === "POST" && p === "/status") return status(req, env);
     return new Response("MvS key gate", { status: 200 });
