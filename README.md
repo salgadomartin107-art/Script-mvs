@@ -70,6 +70,12 @@ Se valida sin servidor, con una firma ECDSA (clave pública en `config/install-p
 **Es un freno, no una barrera:** el instalador es texto y quien lo edite puede quitar la validación. Para obligarla de verdad hace falta
 que el instalador se entregue desde un servidor que compruebe la key.
 
+### Bot de Telegram para generar keys
+
+`lib/py/keybot.py` es un bot que responde solo a tu id de Telegram y, al escribirle `/key`, te devuelve una key nueva y el comando de
+instalación. Corre donde tengas `python3` y `openssl` (Termux en el celular, otra VPS, una PC) con `~/.mvs-keybot.conf`
+(`TOKEN=`, `CHAT=`, `PRIV=` ruta de private.pem). Si la VPS tiene la clave privada, el bot del panel [L] también responde a `/key`.
+
 ## MULTIPLEXOR [21] (un puerto para todo, tipo sslh)
 
 Deja un solo puerto público, normalmente el 443, y reparte cada conexión según lo que llega: TLS con SNI va a SSL/TLS [5],

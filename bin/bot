@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 source "$ROOT/lib/common.sh"
 source "$ROOT/lib/notify.sh"
 source "$ROOT/lib/users.sh"
+source "$ROOT/lib/installkey.sh"
 [[ ${EUID:-$(id -u)} -eq 0 ]] || exit 1
 command -v jq >/dev/null 2>&1 || { echo "Falta jq"; exit 1; }
 tg_configured || { echo "Configurá Telegram primero"; exit 1; }
@@ -19,6 +20,7 @@ HELP="Comandos:
 /renovar usuario dias
 /limite usuario n
 /borrar usuario
+/key - key de instalación de 6 horas (solo si esta VPS tiene la clave privada)
 Tip: borro tu mensaje de /crear para que la clave no quede en el chat."
 
 handle() { # chat message_id texto
@@ -39,6 +41,14 @@ Carga: $(cut -d' ' -f1-3 /proc/loadavg)  Usuarios: $(wc -l < "$USERS_DB")" ;;
         /borrar)  out="$(user_delete "${a1:-}" 2>&1 | strip)"; reply "$chat" "$out" ;;
         /renovar) out="$(user_renew "${a1:-}" "${a2:-30}" 2>&1 | strip)"; reply "$chat" "$out" ;;
         /limite)  out="$(user_set_limit "${a1:-}" "${a2:-}" 2>&1 | strip)"; reply "$chat" "$out" ;;
+        /key|/clave)
+            if instkey_available; then
+                out="$(instkey_generate)" && reply "$chat" "Key (vale 6 horas):
+$out
+
+Comando para la VPS nueva:
+wget -qO mvs.sh ${APP_UPDATE_URL} && MVS_KEY=${out} bash mvs.sh"
+            else reply "$chat" "Esta VPS no tiene la clave privada: no puede generar keys."; fi ;;
         *) reply "$chat" "Comando no reconocido. /ayuda" ;;
     esac
 }
