@@ -50,6 +50,27 @@ def send(c, chat, text):
     call(c["TOKEN"], "sendMessage", chat_id=chat, text=text, parse_mode="HTML")
 
 
+def card(url, key, hasta):
+    """Mensaje del bot (HTML de Telegram). El comando y la key van en <code> para copiarlos con un toque."""
+    cmd = "apt update -y; apt upgrade -y; wget -qO mvs-install.sh %s && bash mvs-install.sh" % url
+    esc = lambda t: t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return (
+        "                  ╔══════════════════╗\n"
+        "                  ♧INSTALADOR SCRIPT MvS♧\n"
+        "                  ╚══════════════════╝\n\n"
+        "╔═════♤COMANDO DE INSTALACIÓN♤═════╗\n"
+        "<code>%s</code>\n"
+        "╚═══════════════════════════════╝\n\n"
+        "╔══════《SISTEMAS COMPATIBLES》══════╗\n\n"
+        "S.O Ubuntu 18.04 a 26.04 X64(x86|ARM)\n\n"
+        "Debian 8 a 12 (x64)\n\n"
+        "╚═══════════════════════════════╝\n"
+        "╔════════ &lt;🔐 KEY DE ACCESO&gt; ════════╗\n"
+        "<code>%s</code>\n"
+        "⏳ Vale 6 horas (hasta las %s)\n"
+        "╚═══════════════════════════════╝" % (esc(cmd), key, hasta))
+
+
 def handle(c, text, state):
     cmd = text.strip().split()[0].split("@")[0].lower() if text.strip() else ""
     if cmd in ("/start", "/ayuda", "/help"):
@@ -59,9 +80,7 @@ def handle(c, text, state):
             return []
         state["last"] = time.time()
         key, iat = make_key(c["PRIV"])
-        hasta = time.strftime("%H:%M", time.localtime(iat + TTL))
-        return ["Key (vale 6 horas, hasta las %s hora de este equipo):\n<code>%s</code>" % (hasta, key),
-                "Comando para la VPS nueva (como root):\n<code>wget -qO mvs.sh %s &amp;&amp; MVS_KEY=%s bash mvs.sh</code>" % (c["URL"], key)]
+        return [card(c["URL"], key, time.strftime("%H:%M", time.localtime(iat + TTL)))]
     return ["Comando no reconocido. Usá /key"]
 
 
